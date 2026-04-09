@@ -35,18 +35,27 @@ struct timespec te;
 float yaw=0;
 float pitch_angle=0;
 float roll_angle=0;
+float roll_accel=0;     // accel-only roll (for graphing)
+float pitch_accel=0;     // accel-only pitch (for graphing)
+float roll_gyro_int=0;   // gyro-integrated roll (for graphing)
+float pitch_gyro_int=0;  // gyro-integrated pitch (for graphing)
+float program_time=0;    // elapsed time in seconds
 
  
 int main (int argc, char *argv[])
 {
 
     setup_imu();
-    calibrate_imu();
+    //calibrate_imu();
     sleep(5);
     
     while(1)
     {
       read_imu();  
+      update_filter();
+      printf("%.4f %.4f %.4f %.4f %.4f %.4f %.4f\n",program_time,
+         roll_angle, roll_accel, roll_gyro_int,
+         pitch_angle, pitch_accel, pitch_gyro_int);
     }
   
 }
@@ -170,6 +179,8 @@ void read_imu()
 
   pitch_measure=-((atan2(imu_data[1], imu_data[0])*180.0/M_PI) - pitch_calibration);
   roll_measure=(atan2(imu_data[2], imu_data[0])*180.0/M_PI) - roll_calibration;
+  pitch_accel=pitch_measure;
+  roll_accel=roll_measure;
   
   printf("%10.5f %10.5f %10.5f %10.5f %10.5f\n", imu_data[3], imu_data[4], imu_data[5], pitch_measure, roll_measure);
 }
@@ -229,7 +240,16 @@ void update_filter()
   imu_diff=imu_diff/1000000000;
   time_prev=time_curr;
   
-  //comp. filter for roll, pitch here: 
+  program_time+= imu_diff;
+
+  //gyro-only integration
+  roll_gyro_int+=  imu_data[3]* imu_diff;//gyroX drives roll
+  pitch_gyro_int +=-imu_data[4]*imu_diff; //gyroY drives pitch (negated to match pitch_accel sign)
+
+  //equation for the igh-pass gyro and low-pass accel
+  float A = 0.02f;
+  roll_angle= roll_accel*A +(1.0f- A) *(imu_data[3]*imu_diff+ roll_angle);
+  pitch_angle =pitch_accel* A+ (1.0f -A) *(-imu_data[4] *imu_diff+pitch_angle);
 }
 
 
