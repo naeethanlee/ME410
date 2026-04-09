@@ -11,11 +11,18 @@
 
 //gcc -o week1 week_1_student.cpp -lwiringPi  -lm
 
+#define GYRO_LIMIT 300.0f
+#define ROLL_LIMIT 45.0f
+#define PITCH_LIMIT 45.0f
+#define JOYSTICK_TIMEOUT 0.35f
 
 int setup_imu();
-void calibrate_imu();      
-void read_imu();    
+void calibrate_imu();
+void read_imu();
 void update_filter();
+void setup_joystick();
+void trap(int signal);
+void safety_check();
 
 //global variables
 int accel_address,gyro_address;
@@ -35,29 +42,52 @@ struct timespec te;
 float yaw=0;
 float pitch_angle=0;
 float roll_angle=0;
-float roll_accel=0;     // accel-only roll (for graphing)
-float pitch_accel=0;     // accel-only pitch (for graphing)
-float roll_gyro_int=0;   // gyro-integrated roll (for graphing)
-float pitch_gyro_int=0;  // gyro-integrated pitch (for graphing)
-float program_time=0;    // elapsed time in seconds
+float roll_accel=0;//accel-only roll (for graphing)
+float pitch_accel=0;   // accel-only pitch (for graphing)
+float roll_gyro_int=0; // gyro-integrated roll (for graphing)
+float pitch_gyro_int=0;// gyro-integrated pitch (for graphing)
+float program_time=0; // elapsed time in seconds
 
- 
+struct Joystick
+{
+  int key0;
+  int key1;
+  int key2;
+  int key3;
+  int pitch;
+  int roll;
+  int yaw;
+  int thrust;
+  int sequence_num;
+};
+
+Joystick* shared_memory;
+Joystick joystick_data;
+int run_program=1;
+int last_sequence_num=0;
+float last_joystick_time=0;
+
 int main (int argc, char *argv[])
 {
 
     setup_imu();
     //calibrate_imu();
+    setup_joystick();
+    signal(SIGINT, &trap);
     sleep(5);
-    
-    while(1)
+
+    while(run_program==1)
     {
-      read_imu();  
+      joystick_data=*shared_memory;
+      read_imu();
       update_filter();
+      safety_check();
       printf("%.4f %.4f %.4f %.4f %.4f %.4f %.4f\n",program_time,
          roll_angle, roll_accel, roll_gyro_int,
          pitch_angle, pitch_accel, pitch_gyro_int);
     }
-  
+
+    return 0;
 }
 
 void calibrate_imu()
@@ -182,7 +212,7 @@ void read_imu()
   pitch_accel=pitch_measure;
   roll_accel=roll_measure;
   
-  printf("%10.5f %10.5f %10.5f %10.5f %10.5f\n", imu_data[3], imu_data[4], imu_data[5], pitch_measure, roll_measure);
+  //printf("%10.5f %10.5f %10.5f %10.5f %10.5f\n", imu_data[3], imu_data[4], imu_data[5], pitch_measure, roll_measure);
 }
 
 
@@ -253,69 +283,79 @@ void update_filter()
 }
 
 
-//global variables to add
-
-struct Joystick
-{
-  int key0;
-  int key1;
-  int key2;
-  int key3;
-  int pitch;
-  int roll;
-  int yaw;
-  int thrust;
-  int sequence_num;
-};
-
-
-Joystick* shared_memory; 
-int run_program=1;
-
-//function to add
-void setup_joystick()
-{
-
-  int segment_id;   
-  struct shmid_ds shmbuffer; 
-  int segment_size; 
-  const int shared_segment_size = 0x6400; 
-  int smhkey=33222;
-  
-  /* Allocate a shared memory segment.  */ 
-  segment_id = shmget (smhkey, shared_segment_size,IPC_CREAT | 0666); 
-  /* Attach the shared memory segment.  */ 
-  shared_memory = (Joystick*) shmat (segment_id, 0, 0); 
-  printf ("shared memory attached at address %p\n", shared_memory); 
-  /* Determine the segment's size. */ 
-  shmctl (segment_id, IPC_STAT, &shmbuffer); 
-  segment_size  =               shmbuffer.shm_segsz; 
-  printf ("segment size: %d\n", segment_size); 
-  /* Write a string to the shared memory segment.  */ 
-  //sprintf (shared_memory, "test!!!!."); 
-
-}
-
-
 //when cntrl+c pressed, kill motors
 
 void trap(int signal)
 
 {
 
-   
- 
+
+
    printf("ending program\n\r");
 
    run_program=0;
 }
- 
 
-//in main before while(1) loop add...
-setup_joystick();
-signal(SIGINT, &trap);
+void setup_joystick()
+{
 
-//to refresh values from shared memory first 
-Joystick joystick_data=*shared_memory;
+  int segment_id;
+  struct shmid_ds shmbuffer;
+  int segment_size;
+  const int shared_segment_size = 0x6400;
+  int smhkey=33222;
 
-//be sure to update the while(1) in main to use run_program instead 
+  /* Allocate a shared memory segment.  */
+  segment_id = shmget (smhkey, shared_segment_size,IPC_CREAT | 0666);
+  /* Attach the shared memory segment.  */
+  shared_memory = (Joystick*) shmat (segment_id, 0, 0);
+  printf ("shared memory attached at address %p\n", shared_memory);
+  /* Determine the segment's size. */
+  shmctl (segment_id, IPC_STAT, &shmbuffer);
+  segment_size  =               shmbuffer.shm_segsz;
+  printf ("segment size: %d\n", segment_size);
+  /* Write a string to the shared memory segment.  */
+  //sprintf (shared_memory, "test!!!!.");
+
+}
+
+void safety_check()
+{
+  //gyro rate check
+  if(imu_data[3]>GYRO_LIMIT || imu_data[3]<-GYRO_LIMIT ||
+     imu_data[4]>GYRO_LIMIT || imu_data[4]<-GYRO_LIMIT ||
+     imu_data[5]>GYRO_LIMIT || imu_data[5]<-GYRO_LIMIT)
+  {
+    printf("safety: gyro rate exceeded limit\n");
+    run_program=0;
+  }
+  //roll angle check
+  if(roll_angle>ROLL_LIMIT || roll_angle<-ROLL_LIMIT)
+  {
+    printf("safety: roll angle exceeded limit\n");
+    run_program=0;
+  }
+  //pitch angle check
+  if(pitch_angle>PITCH_LIMIT || pitch_angle<-PITCH_LIMIT)
+  {
+    printf("safety: pitch angle exceeded limit\n");
+    run_program=0;
+  }
+  //joystick B button check (key1)
+  if(joystick_data.key1==1)
+  {
+    printf("safety: B button pressed\n");
+    run_program=0;
+  }
+  //joystick timeout check
+  if(joystick_data.sequence_num != last_sequence_num)
+  {
+    last_sequence_num=joystick_data.sequence_num;
+    last_joystick_time=program_time;
+  }
+  else if(program_time - last_joystick_time > JOYSTICK_TIMEOUT)
+  {
+    printf("safety: joystick timeout\n");
+    run_program=0;
+  }
+}
