@@ -36,8 +36,8 @@ float roll_calibration=0;
 float pitch_calibration=0;
 float accel_z_calibration=0;
 float imu_data[6]; //accel xyz,  gyro xyz, 
-long time_curr;
-long time_prev;
+float time_curr=0;
+float time_prev=0;
 struct timespec te;
 float yaw=0;
 float pitch_angle=0;
@@ -71,7 +71,7 @@ int main (int argc, char *argv[])
 {
 
     setup_imu();
-    //calibrate_imu();
+    calibrate_imu();
     setup_joystick();
     signal(SIGINT, &trap);
     sleep(5);
@@ -254,12 +254,11 @@ int setup_imu()
 
 void update_filter()
 {
-
   //get current time in nanoseconds
   timespec_get(&te,TIME_UTC);
   time_curr=te.tv_nsec;
   //compute time since last execution
-  float imu_diff=time_curr-time_prev;           
+  float imu_diff=time_curr - time_prev;           
   
   //check for rollover
   if(imu_diff<=0)
@@ -273,13 +272,13 @@ void update_filter()
   program_time+= imu_diff;
 
   //gyro-only integration
-  roll_gyro_int+=  imu_data[3]* imu_diff;//gyroX drives roll
-  pitch_gyro_int +=-imu_data[4]*imu_diff; //gyroY drives pitch (negated to match pitch_accel sign)
+  roll_gyro_int += (imu_data[4] * imu_diff); //gyroX drives roll
+  pitch_gyro_int += (imu_data[5] * imu_diff); //gyroY drives pitch (negated to match pitch_accel sign)
 
   //equation for the igh-pass gyro and low-pass accel
   float A = 0.02f;
   roll_angle= roll_accel*A +(1.0f- A) *(imu_data[3]*imu_diff+ roll_angle);
-  pitch_angle =pitch_accel* A+ (1.0f -A) *(-imu_data[4] *imu_diff+pitch_angle);
+  pitch_angle = pitch_accel* A+ (1.0f -A) * (imu_data[3]*imu_diff+ pitch_angle);
 }
 
 
