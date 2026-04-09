@@ -109,8 +109,8 @@ void calibrate_imu()
     z_gyro_calibration_sum+=imu_data[5];
 
     //accum accel angles
-    pitch_calibration_sum+=atan2(imu_data[1], imu_data[0])*180.0/M_PI;
-    roll_calibration_sum+=atan2(imu_data[2], imu_data[0])*180.0/M_PI;
+    roll_calibration_sum  += atan2(imu_data[1], imu_data[2])*180.0/M_PI;
+    pitch_calibration_sum += atan2(-imu_data[0], imu_data[2])*180.0/M_PI;
   }
   
   //avg offsets, subtracted later in read_imu
@@ -207,8 +207,8 @@ void read_imu()
   }          
   imu_data[5]=((float)vw)*1000.0/32768.0 - z_gyro_calibration;//convert to degrees/sec  
 
-  pitch_measure=-((atan2(imu_data[1], imu_data[0])*180.0/M_PI) - pitch_calibration);
-  roll_measure=(atan2(imu_data[2], imu_data[0])*180.0/M_PI) - roll_calibration;
+  roll_measure  = (atan2(imu_data[1], imu_data[2])*180.0/M_PI) - roll_calibration;
+  pitch_measure = (atan2(-imu_data[0], imu_data[2])*180.0/M_PI) - pitch_calibration;
   pitch_accel=pitch_measure;
   roll_accel=roll_measure;
   
