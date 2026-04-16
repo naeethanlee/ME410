@@ -15,6 +15,9 @@
 #define ROLL_LIMIT 45.0f
 #define PITCH_LIMIT 45.0f
 #define JOYSTICK_TIMEOUT 0.35f
+#define THRUST_MAX 2000f
+#define THRUST_MIN 0f
+
 
 int setup_imu();
 void calibrate_imu();
@@ -23,6 +26,7 @@ void update_filter();
 void setup_joystick();
 void trap(int signal);
 void safety_check();
+void set_motors();
 
 //global variables
 int accel_address,gyro_address;
@@ -47,6 +51,12 @@ float pitch_accel=0;   // accel-only pitch (for graphing)
 float roll_gyro_int=0; // gyro-integrated roll (for graphing)
 float pitch_gyro_int=0;// gyro-integrated pitch (for graphing)
 float program_time=0; // elapsed time in seconds
+
+// Milestone 3
+int motor_commands=[0, 0, 0, 0]; // 0 and 2 forward, 1 and 3 back(left then right)
+float thrust=0;
+float thrust_neutral=1500; // neutral thrust value
+float thrust_amplitude=100; // joystick thrust read
 
 struct Joystick
 {
@@ -357,5 +367,18 @@ void safety_check()
   {
     printf("safety: joystick timeout\n");
     run_program=0;
+  }
+}
+
+void set_motors()
+{
+  float joystick_thrust_value = 0; // temp variable of joystick
+  joystick_thrust_value = joystick_data.thrust - 128;
+
+  if(joystick_thrust_value <= 0){
+    thrust = thrust_neutral + -(joystick_thrust_value / 128 * thrust_amplitude);
+  }
+  else if(joystick_thrust_value > 0){
+    thrust = thrust_neutral + -(joystick_thrust_value / 127 * thrust_amplitude);
   }
 }
