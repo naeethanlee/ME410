@@ -53,10 +53,12 @@ float pitch_gyro_int=0;// gyro-integrated pitch (for graphing)
 float program_time=0; // elapsed time in seconds
 
 // Milestone 3
-int motor_commands=[0, 0, 0, 0]; // 0 and 2 forward, 1 and 3 back(left then right)
+int motor_commands[] = {0, 0, 0, 0}; // 0 and 2 forward, 1 and 3 back(left then right)
 float thrust=0;
-float thrust_neutral=1500; // neutral thrust value
+float thrust_neutral=100; // neutral thrust value
 float thrust_amplitude=100; // joystick thrust read
+float pitch_amplitude=10; // joystick pitch read
+float pitch_gain = 10; // pitch gain
 
 struct Joystick
 {
@@ -91,10 +93,11 @@ int main (int argc, char *argv[])
       joystick_data=*shared_memory;
       read_imu();
       update_filter();
-      safety_check();
-      printf("%.4f %.4f %.4f %.4f %.4f %.4f %.4f\n",program_time,
-         roll_angle, roll_accel, roll_gyro_int,
-         pitch_angle, pitch_accel, pitch_gyro_int);
+      // safety_check();
+      set_motors();
+      // printf("%.4f %.4f %.4f %.4f %.4f %.4f %.4f\n",program_time,
+      //    roll_angle, roll_accel, roll_gyro_int,
+      //    pitch_angle, pitch_accel, pitch_gyro_int);
     }
 
     return 0;
@@ -372,13 +375,35 @@ void safety_check()
 
 void set_motors()
 {
+  /* thrust */
   float joystick_thrust_value = 0; // temp variable of joystick
   joystick_thrust_value = joystick_data.thrust - 128;
 
-  if(joystick_thrust_value <= 0){
-    thrust = thrust_neutral + -(joystick_thrust_value / 128 * thrust_amplitude);
-  }
-  else if(joystick_thrust_value > 0){
-    thrust = thrust_neutral + -(joystick_thrust_value / 127 * thrust_amplitude);
-  }
+  // lerp
+  thrust = thrust_neutral - (joystick_thrust_value / 128 * thrust_amplitude);
+
+  /* pitch */
+  float pitch_error = 0;
+  float pitch_measured = pitch_angle;
+  float pitch_desired = 0;
+  float joystick_pitch_value = (float)(joystick_data.pitch) - 128.0;
+
+  // lerp
+  pitch_desired = -(joystick_pitch_value / 128 * pitch_amplitude);
+  
+  pitch_error = pitch_desired - pitch_measured; // pitch error calculation
+  // printf("%f %f %f\n", pitch_error, pitch_gain * pitch_error, (thrust - (pitch_gain * pitch_error)));
+
+  // front motors decrease, rear motors increase
+  motor_commands[0] = (int)(thrust - (pitch_gain * pitch_error)); // motor 1
+  motor_commands[2] = (int)(thrust - (pitch_gain * pitch_error));
+  motor_commands[1] = (int)(thrust + (pitch_gain * pitch_error));
+  motor_commands[3] = (int)(thrust + (pitch_gain * pitch_error));
+  printf("%.4f %.4f %.4f %.4f %.4f %.4f\n",program_time,
+         motor_commands[0], motor_commands[1], thrust,
+         pitch_desired, pitch_measured);
+
+  // printf("%d %d %d %d\n",
+  //        motor_commands[0], motor_commands[1], motor_commands[2],
+  //        motor_commands[3]);
 }
