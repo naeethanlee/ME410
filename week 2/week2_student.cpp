@@ -389,19 +389,20 @@ void set_motors()
   float joystick_pitch_value = (float)(joystick_data.pitch) - 128.0;
 
   // lerp
-  pitch_desired = -(joystick_pitch_value / 128 * pitch_amplitude);
+  pitch_desired = -(joystick_pitch_value / 128.0 * pitch_amplitude);
   
   pitch_error = pitch_desired - pitch_measured; // pitch error calculation
-  // printf("%f %f %f\n", pitch_error, pitch_gain * pitch_error, (thrust - (pitch_gain * pitch_error)));
-
+  
+  // printf("%f %f %f\n", thrust, pitch_desired, pitch_measured);
   // front motors decrease, rear motors increase
   motor_commands[0] = (int)(thrust - (pitch_gain * pitch_error)); // motor 1
   motor_commands[2] = (int)(thrust - (pitch_gain * pitch_error));
   motor_commands[1] = (int)(thrust + (pitch_gain * pitch_error));
   motor_commands[3] = (int)(thrust + (pitch_gain * pitch_error));
-  printf("%.4f %.4f %.4f %.4f %.4f %.4f\n",program_time,
+  printf("%.4f %d %d %.4f %.4f %.4f\n",program_time,
          motor_commands[0], motor_commands[1], thrust,
          pitch_desired, pitch_measured);
+
 
   // printf("%d %d %d %d\n",
   //        motor_commands[0], motor_commands[1], motor_commands[2],
