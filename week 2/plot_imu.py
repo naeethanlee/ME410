@@ -17,7 +17,7 @@ try:
         if not line:
             continue
         parts = line.split()
-        if len(parts) != 6:
+        if len(parts) != 5:
             continue
         try:
             data.append([float(x) for x in parts])
@@ -36,7 +36,7 @@ roll_filt   = [row[1] for row in data]
 roll_accel  = [row[2] for row in data]
 roll_gyro   = [row[3] for row in data]
 pitch_filt  = [row[4] for row in data]
-pitch_accel = [row[5] for row in data]
+# pitch_accel = [row[5] for row in data]
 # pitch_gyro  = [row[6] for row in data]
 
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
@@ -45,7 +45,7 @@ ax1.plot(t, roll_filt,  label='Complementary Filter', linewidth=2)
 ax1.plot(t, roll_accel, label='Accelerometer Only',   linewidth=1, linestyle='--')
 ax1.plot(t, roll_gyro,  label='Gyro Integrated',      linewidth=1, linestyle=':')
 ax1.plot(t, pitch_filt,  label='Complementary Filter', linewidth=2)
-ax1.plot(t, pitch_accel, label='Accelerometer Only',   linewidth=1, linestyle='--')
+# ax1.plot(t, pitch_accel, label='Accelerometer Only',   linewidth=1, linestyle='--')
 ax1.set_ylabel('Roll Angle (deg)')
 ax1.set_title('Roll')
 ax1.legend()

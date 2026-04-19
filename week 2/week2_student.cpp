@@ -59,6 +59,7 @@ float thrust_neutral=100; // neutral thrust value
 float thrust_amplitude=100; // joystick thrust read
 float pitch_amplitude=10; // joystick pitch read
 float pitch_gain = 10; // pitch gain
+float derivative_gain = 1; // derivative gain
 
 struct Joystick
 {
@@ -383,6 +384,9 @@ void set_motors()
   thrust = thrust_neutral - (joystick_thrust_value / 128 * thrust_amplitude);
 
   /* pitch */
+  //
+  // proportional control
+  // 
   float pitch_error = 0;
   float pitch_measured = pitch_angle;
   float pitch_desired = 0;
@@ -393,18 +397,23 @@ void set_motors()
   
   pitch_error = pitch_desired - pitch_measured; // pitch error calculation
   
-  // printf("%f %f %f\n", thrust, pitch_desired, pitch_measured);
   // front motors decrease, rear motors increase
-  motor_commands[0] = (int)(thrust - (pitch_gain * pitch_error)); // motor 1
-  motor_commands[2] = (int)(thrust - (pitch_gain * pitch_error));
-  motor_commands[1] = (int)(thrust + (pitch_gain * pitch_error));
-  motor_commands[3] = (int)(thrust + (pitch_gain * pitch_error));
-  printf("%.4f %d %d %.4f %.4f %.4f\n",program_time,
-         motor_commands[0], motor_commands[1], thrust,
-         pitch_desired, pitch_measured);
+  // motor_commands[0] = (int)(thrust - (pitch_gain * pitch_error)); // motor 1
+  // motor_commands[2] = (int)(thrust - (pitch_gain * pitch_error));
+  // motor_commands[1] = (int)(thrust + (pitch_gain * pitch_error));
+  // motor_commands[3] = (int)(thrust + (pitch_gain * pitch_error));
+  // printf("%.4f %d %d %.4f %.4f %.4f\n",program_time,
+  //        motor_commands[0], motor_commands[1], thrust,
+  //        pitch_desired, pitch_measured);
 
-
-  // printf("%d %d %d %d\n",
-  //        motor_commands[0], motor_commands[1], motor_commands[2],
-  //        motor_commands[3]);
+  // 
+  // derivative control
+  //
+  motor_commands[0] = (int)(thrust - (derivative_gain * imu_data[5])); // motor 1
+  motor_commands[2] = (int)(thrust - (derivative_gain * imu_data[5]));
+  motor_commands[1] = (int)(thrust + (derivative_gain * imu_data[5]));
+  motor_commands[3] = (int)(thrust + (derivative_gain * imu_data[5]));
+  printf("%.4f %d %d %.4f %.4f\n",program_time,
+         motor_commands[0], motor_commands[1], pitch_measured,
+         imu_data[5]);
 }
