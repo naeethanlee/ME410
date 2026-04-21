@@ -410,30 +410,40 @@ void set_motors()
   // derivative control
   //
 
-  motor_commands[0] = (int)(thrust + (derivative_gain * imu_data[5])); // motor 1
-  motor_commands[2] = (int)(thrust + (derivative_gain * imu_data[5]));
-  motor_commands[1] = (int)(thrust - (derivative_gain * imu_data[5]));
-  motor_commands[3] = (int)(thrust - (derivative_gain * imu_data[5]));
-  printf("%.4f %d %d %.4f %.4f\n",program_time,
-         motor_commands[0], motor_commands[1], pitch_measured * 10,
-         imu_data[5], thrust);
+  // motor_commands[0] = (int)(thrust - (derivative_gain * imu_data[5])); // motor 1
+  // motor_commands[2] = (int)(thrust - (derivative_gain * imu_data[5]));
+  // motor_commands[1] = (int)(thrust + (derivative_gain * imu_data[5]));
+  // motor_commands[3] = (int)(thrust + (derivative_gain * imu_data[5]));
+  // printf("%.4f %d %d %.4f %.4f %.4f\n",program_time,
+  //        motor_commands[0], motor_commands[1], pitch_measured * 10,
+  //        imu_data[5], thrust);
   
   // integral
-  integral_pitch += integral_gain * pitch_error * dt;
+  integral_pitch += integral_gain * pitch_error;
   if(integral_pitch > integral_saturate)
     integral_pitch = integral_saturate;
   else if(integral_pitch < -integral_saturate)
     integral_pitch = -integral_saturate;
 
+  // motor_commands[0] = (int)(thrust - (integral_pitch)); // motor 1
+  // motor_commands[2] = (int)(thrust - (integral_pitch));
+  // motor_commands[1] = (int)(thrust + (integral_pitch));
+  // motor_commands[3] = (int)(thrust + (integral_pitch));
+
+  // printf("%.4f %d %d %.4f %.4f %.4f\n",program_time,
+  //        motor_commands[0], motor_commands[1], pitch_measured * 10,
+  //        pitch_desired * 10, thrust);
+
+
   // PID combined
-  float pid = pitch_gain * pitch_error + derivative_gain * imu_data[5] + integral_pitch;
+  float pid = (pitch_gain * pitch_error) - (derivative_gain * imu_data[5]) - (integral_pitch);
 
-  motor_commands[0] = (int)(thrust - pid);
-  motor_commands[2] = (int)(thrust - pid);
-  motor_commands[1] = (int)(thrust + pid);
-  motor_commands[3] = (int)(thrust + pid);
+  motor_commands[0] = (int)(thrust + pid);
+  motor_commands[2] = (int)(thrust + pid);
+  motor_commands[1] = (int)(thrust - pid);
+  motor_commands[3] = (int)(thrust - pid);
 
-  // printf("%.4f %d %d %.4f %.4f %.4f\n", program_time,
-  //        motor_commands[0], motor_commands[1],
-  //        thrust, pitch_desired * 10.0, pitch_measured * 10.0);
+  printf("%.4f %d %d %.4f %.4f %.4f\n", program_time,
+         motor_commands[0], motor_commands[1],
+         thrust, pitch_desired * 10.0, pitch_measured * 10.0);
 }
