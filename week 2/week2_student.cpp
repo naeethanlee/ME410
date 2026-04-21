@@ -25,6 +25,7 @@ void read_imu();
 void update_filter();
 void setup_joystick();
 void trap(int signal);
+void kill_motors(const char* reason);
 void safety_check();
 void set_motors();
 
@@ -51,6 +52,7 @@ float pitch_accel=0;   // accel-only pitch (for graphing)
 float roll_gyro_int=0; // gyro-integrated roll (for graphing)
 float pitch_gyro_int=0;// gyro-integrated pitch (for graphing)
 float program_time=0; // elapsed time in seconds
+float dt=0; // timestep in seconds
 
 // Milestone 3
 int motor_commands[] = {0, 0, 0, 0}; // 0 and 2 forward, 1 and 3 back(left then right)
@@ -97,7 +99,7 @@ int main (int argc, char *argv[])
       joystick_data=*shared_memory;
       read_imu();
       update_filter();
-      // safety_check();
+      safety_check();
       set_motors();
       // printf("%.4f %.4f %.4f %.4f %.4f %.4f %.4f\n",program_time,
       //    roll_angle, roll_accel, roll_gyro_int,
@@ -276,41 +278,41 @@ void update_filter()
   timespec_get(&te,TIME_UTC);
   time_curr=te.tv_nsec;
   //compute time since last execution
-  float imu_diff=time_curr - time_prev;           
-  
+  dt=time_curr - time_prev;
+
   //check for rollover
-  if(imu_diff<=0)
+  if(dt<=0)
   {
-    imu_diff+=1000000000;
+    dt+=1000000000;
   }
   //convert to seconds
-  imu_diff=imu_diff/1000000000;
+  dt=dt/1000000000;
   time_prev=time_curr;
-  
-  program_time+= imu_diff;
+
+  program_time+= dt;
 
   //gyro-only integration
-  roll_gyro_int += (imu_data[4] * imu_diff); //gyroX drives roll
-  pitch_gyro_int += (imu_data[5] * imu_diff); //gyroY drives pitch (negated to match pitch_accel sign)
+  roll_gyro_int += (imu_data[4] * dt); //gyroX drives roll
+  pitch_gyro_int += (imu_data[5] * dt); //gyroY drives pitch (negated to match pitch_accel sign)
 
   //equation for the igh-pass gyro and low-pass accel
   float A = 0.02f;
-  roll_angle= roll_accel*A +(1.0f- A) *(imu_data[4]*imu_diff + roll_angle);
-  pitch_angle = pitch_accel* A+ (1.0f -A) * (imu_data[5]*imu_diff+ pitch_angle);
+  roll_angle= roll_accel*A +(1.0f- A) *(imu_data[4]*dt + roll_angle);
+  pitch_angle = pitch_accel* A+ (1.0f -A) * (imu_data[5]*dt+ pitch_angle);
 }
 
 
 //when cntrl+c pressed, kill motors
 
 void trap(int signal)
-
 {
-
-
-
-   printf("ending program\n\r");
-
-   run_program=0;
+  motor_commands[0]=0;
+  motor_commands[1]=0;
+  motor_commands[2]=0;
+  motor_commands[3]=0;
+  set_motors();
+  printf("Control+C: killing motors and ending program\n\r");
+  run_program=0;
 }
 
 void setup_joystick()
@@ -336,45 +338,40 @@ void setup_joystick()
 
 }
 
+void kill_motors(const char* reason)
+{
+  motor_commands[0]=0;
+  motor_commands[1]=0;
+  motor_commands[2]=0;
+  motor_commands[3]=0;
+  set_motors();
+  printf("safety: %s — killing motors and ending program\n", reason);
+  run_program=0;
+}
+
 void safety_check()
 {
-  //gyro rate check
   if(imu_data[3]>GYRO_LIMIT || imu_data[3]<-GYRO_LIMIT ||
      imu_data[4]>GYRO_LIMIT || imu_data[4]<-GYRO_LIMIT ||
      imu_data[5]>GYRO_LIMIT || imu_data[5]<-GYRO_LIMIT)
-  {
-    printf("safety: gyro rate exceeded limit\n");
-    run_program=0;
-  }
-  //roll angle check
+    kill_motors("gyro rate exceeded limit");
+
   if(roll_angle>ROLL_LIMIT || roll_angle<-ROLL_LIMIT)
-  {
-    printf("safety: roll angle exceeded limit\n");
-    run_program=0;
-  }
-  //pitch angle check
+    kill_motors("roll angle exceeded limit");
+
   if(pitch_angle>PITCH_LIMIT || pitch_angle<-PITCH_LIMIT)
-  {
-    printf("safety: pitch angle exceeded limit\n");
-    run_program=0;
-  }
-  //joystick B button check (key1)
+    kill_motors("pitch angle exceeded limit");
+
   if(joystick_data.key1==1)
-  {
-    printf("safety: B button pressed\n");
-    run_program=0;
-  }
-  //joystick timeout check
+    kill_motors("joystick kill button pressed");
+
   if(joystick_data.sequence_num != last_sequence_num)
   {
     last_sequence_num=joystick_data.sequence_num;
     last_joystick_time=program_time;
   }
   else if(program_time - last_joystick_time > JOYSTICK_TIMEOUT)
-  {
-    printf("safety: joystick timeout\n");
-    run_program=0;
-  }
+    kill_motors("joystick timeout");
 }
 
 void set_motors()
@@ -400,42 +397,22 @@ void set_motors()
   
   pitch_error = pitch_desired - pitch_measured; // pitch error calculation
   
-  // front motors decrease, rear motors increase
-  // motor_commands[0] = (int)(thrust - (pitch_gain * pitch_error)); // motor 1
-  // motor_commands[2] = (int)(thrust - (pitch_gain * pitch_error));
-  // motor_commands[1] = (int)(thrust + (pitch_gain * pitch_error));
-  // motor_commands[3] = (int)(thrust + (pitch_gain * pitch_error));
-  // printf("%.4f %d %d %.4f %.4f %.4f\n",program_time,
-  //        motor_commands[0], motor_commands[1], thrust,
-  //        pitch_desired, pitch_measured);
-
-  // 
-  // derivative control
-  //
-//   motor_commands[0] = (int)(thrust - (derivative_gain * imu_data[5])); // motor 1
-//   motor_commands[2] = (int)(thrust - (derivative_gain * imu_data[5]));
-//   motor_commands[1] = (int)(thrust + (derivative_gain * imu_data[5]));
-//   motor_commands[3] = (int)(thrust + (derivative_gain * imu_data[5]));
-  // printf("%.4f %d %d %.4f %.4f\n",program_time,
-  //        motor_commands[0], motor_commands[1], pitch_measured * 10,
-  //        imu_data[5]);
-
-  //
-  // integral control
-  //
-  integral_pitch += integral_gain * pitch_error;
-  if(integral_pitch > integral_saturate){
+  // integral
+  integral_pitch += integral_gain * pitch_error * dt;
+  if(integral_pitch > integral_saturate)
     integral_pitch = integral_saturate;
-  }
-  else if(integral_pitch < -integral_saturate){
+  else if(integral_pitch < -integral_saturate)
     integral_pitch = -integral_saturate;
-  }
-  // printf("%f\n", integral_pitch);
-  motor_commands[0] = (int)(thrust - (integral_pitch));
-  motor_commands[2] = (int)(thrust - (integral_pitch));
-  motor_commands[1] = (int)(thrust + (integral_pitch));
-  motor_commands[3] = (int)(thrust + (integral_pitch));
-  printf("%.4f %d %d %.4f %.4f\n",program_time,
-         motor_commands[0], motor_commands[1], pitch_desired * 10,
-         thrust);
+
+  // PID combined
+  float pid = pitch_gain * pitch_error + derivative_gain * imu_data[5] + integral_pitch;
+
+  motor_commands[0] = (int)(thrust - pid);
+  motor_commands[2] = (int)(thrust - pid);
+  motor_commands[1] = (int)(thrust + pid);
+  motor_commands[3] = (int)(thrust + pid);
+
+  printf("%.4f %d %d %d %d %.4f %.4f %.4f\n", program_time,
+         motor_commands[0], motor_commands[1], motor_commands[2], motor_commands[3],
+         thrust, pitch_desired * 10.0, pitch_measured * 10.0);
 }
