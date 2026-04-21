@@ -41,10 +41,10 @@ pitch_filt  = [row[4] for row in data]
 
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
 
-ax1.plot(t, roll_filt,  label='Complementary Filter', linewidth=2)
-ax1.plot(t, roll_accel, label='Accelerometer Only',   linewidth=1, linestyle='--')
-ax1.plot(t, roll_gyro,  label='Gyro Integrated',      linewidth=1, linestyle=':')
-ax1.plot(t, pitch_filt,  label='Complementary Filter', linewidth=2)
+ax1.plot(t, roll_filt,  label='Front Motor', linewidth=1)
+ax1.plot(t, roll_accel, label='Rear Motor',   linewidth=1, linestyle='--')
+ax1.plot(t, roll_gyro,  label='Pitch * 10',      linewidth=1, linestyle=':')
+ax1.plot(t, pitch_filt,  label='Thrust', linewidth=1)
 # ax1.plot(t, pitch_accel, label='Accelerometer Only',   linewidth=1, linestyle='--')
 ax1.set_ylabel('Roll Angle (deg)')
 ax1.set_title('Roll')

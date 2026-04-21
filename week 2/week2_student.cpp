@@ -60,6 +60,9 @@ float thrust_amplitude=100; // joystick thrust read
 float pitch_amplitude=10; // joystick pitch read
 float pitch_gain = 10; // pitch gain
 float derivative_gain = 1; // derivative gain
+float integral_pitch = 0; // integral pitch
+float integral_gain = 0.1; // integral gain * Perror
+float integral_saturate = 100; // max and min integral value
 
 struct Joystick
 {
@@ -409,11 +412,30 @@ void set_motors()
   // 
   // derivative control
   //
-  motor_commands[0] = (int)(thrust - (derivative_gain * imu_data[5])); // motor 1
-  motor_commands[2] = (int)(thrust - (derivative_gain * imu_data[5]));
-  motor_commands[1] = (int)(thrust + (derivative_gain * imu_data[5]));
-  motor_commands[3] = (int)(thrust + (derivative_gain * imu_data[5]));
+//   motor_commands[0] = (int)(thrust - (derivative_gain * imu_data[5])); // motor 1
+//   motor_commands[2] = (int)(thrust - (derivative_gain * imu_data[5]));
+//   motor_commands[1] = (int)(thrust + (derivative_gain * imu_data[5]));
+//   motor_commands[3] = (int)(thrust + (derivative_gain * imu_data[5]));
+  // printf("%.4f %d %d %.4f %.4f\n",program_time,
+  //        motor_commands[0], motor_commands[1], pitch_measured * 10,
+  //        imu_data[5]);
+
+  //
+  // integral control
+  //
+  integral_pitch += integral_gain * pitch_error;
+  if(integral_pitch > integral_saturate){
+    integral_pitch = integral_saturate;
+  }
+  else if(integral_pitch < -integral_saturate){
+    integral_pitch = -integral_saturate;
+  }
+  // printf("%f\n", integral_pitch);
+  motor_commands[0] = (int)(thrust - (integral_pitch));
+  motor_commands[2] = (int)(thrust - (integral_pitch));
+  motor_commands[1] = (int)(thrust + (integral_pitch));
+  motor_commands[3] = (int)(thrust + (integral_pitch));
   printf("%.4f %d %d %.4f %.4f\n",program_time,
-         motor_commands[0], motor_commands[1], pitch_measured,
-         imu_data[5]);
+         motor_commands[0], motor_commands[1], pitch_desired * 10,
+         thrust);
 }
