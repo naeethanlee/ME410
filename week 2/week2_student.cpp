@@ -398,13 +398,25 @@ void set_motors()
   pitch_error = pitch_desired - pitch_measured; // pitch error calculation
 
   // front motors decrease, rear motors increase
-  motor_commands[0] = (int)(thrust - (pitch_gain * pitch_error)); // motor 1
-  motor_commands[2] = (int)(thrust - (pitch_gain * pitch_error));
-  motor_commands[1] = (int)(thrust + (pitch_gain * pitch_error));
-  motor_commands[3] = (int)(thrust + (pitch_gain * pitch_error));
+  motor_commands[0] = (int)(thrust + (pitch_gain * pitch_error)); // motor 1
+  motor_commands[2] = (int)(thrust + (pitch_gain * pitch_error));
+  motor_commands[1] = (int)(thrust - (pitch_gain * pitch_error));
+  motor_commands[3] = (int)(thrust - (pitch_gain * pitch_error));
   printf("%.4f %d %d %.4f %.4f %.4f\n",program_time,
          motor_commands[0], motor_commands[1], thrust,
-         pitch_desired, pitch_measured);
+         pitch_desired * 10, pitch_measured * 10);
+
+  //
+  // derivative control
+  //
+
+  // motor_commands[0] = (int)(thrust - (derivative_gain * imu_data[5])); // motor 1
+  // motor_commands[2] = (int)(thrust - (derivative_gain * imu_data[5]));
+  // motor_commands[1] = (int)(thrust + (derivative_gain * imu_data[5]));
+  // motor_commands[3] = (int)(thrust + (derivative_gain * imu_data[5]));
+  // printf("%.4f %d %d %.4f %.4f\n",program_time,
+  //        motor_commands[0], motor_commands[1], pitch_measured * 10,
+  //        imu_data[5]);
   
   // integral
   integral_pitch += integral_gain * pitch_error * dt;
