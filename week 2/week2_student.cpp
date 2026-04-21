@@ -99,7 +99,7 @@ int main (int argc, char *argv[])
       joystick_data=*shared_memory;
       read_imu();
       update_filter();
-      safety_check();
+      // safety_check();
       set_motors();
       // printf("%.4f %.4f %.4f %.4f %.4f %.4f %.4f\n",program_time,
       //    roll_angle, roll_accel, roll_gyro_int,
@@ -412,7 +412,7 @@ void set_motors()
   motor_commands[1] = (int)(thrust + pid);
   motor_commands[3] = (int)(thrust + pid);
 
-  printf("%.4f %d %d %d %d %.4f %.4f %.4f\n", program_time,
-         motor_commands[0], motor_commands[1], motor_commands[2], motor_commands[3],
+  printf("%.4f %d %d %.4f %.4f %.4f\n", program_time,
+         motor_commands[0], motor_commands[1],
          thrust, pitch_desired * 10.0, pitch_measured * 10.0);
 }
