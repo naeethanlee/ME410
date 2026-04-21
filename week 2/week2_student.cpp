@@ -396,6 +396,15 @@ void set_motors()
   pitch_desired = -(joystick_pitch_value / 128.0 * pitch_amplitude);
   
   pitch_error = pitch_desired - pitch_measured; // pitch error calculation
+
+  // front motors decrease, rear motors increase
+  motor_commands[0] = (int)(thrust - (pitch_gain * pitch_error)); // motor 1
+  motor_commands[2] = (int)(thrust - (pitch_gain * pitch_error));
+  motor_commands[1] = (int)(thrust + (pitch_gain * pitch_error));
+  motor_commands[3] = (int)(thrust + (pitch_gain * pitch_error));
+  printf("%.4f %d %d %.4f %.4f %.4f\n",program_time,
+         motor_commands[0], motor_commands[1], thrust,
+         pitch_desired, pitch_measured);
   
   // integral
   integral_pitch += integral_gain * pitch_error * dt;
@@ -412,7 +421,7 @@ void set_motors()
   motor_commands[1] = (int)(thrust + pid);
   motor_commands[3] = (int)(thrust + pid);
 
-  printf("%.4f %d %d %.4f %.4f %.4f\n", program_time,
-         motor_commands[0], motor_commands[1],
-         thrust, pitch_desired * 10.0, pitch_measured * 10.0);
+  // printf("%.4f %d %d %.4f %.4f %.4f\n", program_time,
+  //        motor_commands[0], motor_commands[1],
+  //        thrust, pitch_desired * 10.0, pitch_measured * 10.0);
 }

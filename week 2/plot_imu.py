@@ -17,7 +17,7 @@ try:
         if not line:
             continue
         parts = line.split()
-        if len(parts) != 8:
+        if len(parts) != 6:
             continue
         try:
             data.append([float(x) for x in parts])
@@ -33,10 +33,10 @@ if not data:
 
 t           = [row[0] for row in data]
 roll_filt   = [row[1] for row in data]
-roll_accel  = [row[4] for row in data]
-roll_gyro   = [row[5] for row in data]
-pitch_filt  = [row[6] for row in data]
-pitch_accel = [row[7] for row in data]
+roll_accel  = [row[2] for row in data]
+roll_gyro   = [row[3] for row in data]
+pitch_filt  = [row[4] for row in data]
+pitch_accel = [row[5] for row in data]
 
 
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
@@ -44,8 +44,8 @@ fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
 ax1.plot(t, roll_filt,  label='Front Motor', linewidth=1)
 ax1.plot(t, roll_accel, label='Rear Motor',   linewidth=1, linestyle='--')
 ax1.plot(t, roll_gyro,  label='thrust',      linewidth=1, linestyle=':')
-ax1.plot(t, pitch_filt,  label='desired pitch * 10', linewidth=1)
-ax1.plot(t, pitch_accel,  label='measured pitch * 10', linewidth=1)
+ax1.plot(t, pitch_filt,  label='desired pitch', linewidth=1)
+ax1.plot(t, pitch_accel,  label='measured pitch', linewidth=1)
 ax1.set_ylabel('Roll Angle (deg)')
 ax1.set_title('Roll')
 ax1.legend()
