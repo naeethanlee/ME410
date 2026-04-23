@@ -27,7 +27,9 @@ void setup_joystick();
 void trap(int signal);
 void kill_motors(const char* reason);
 void safety_check();
-void set_motors();
+void set_motor_values();
+void motor_enable();
+void set_motors(int motor0, int motor1, int motor2, int motor3);
 
 //global variables
 int accel_address,gyro_address;
@@ -57,14 +59,19 @@ float dt=0; // timestep in seconds
 // Milestone 3
 int motor_commands[] = {0, 0, 0, 0}; // 0 and 2 forward, 1 and 3 back(left then right)
 float thrust=0;
-float thrust_neutral=100; // neutral thrust value
+float thrust_neutral=800; // neutral thrust value
 float thrust_amplitude=100; // joystick thrust read
 float pitch_amplitude=10; // joystick pitch read
 float pitch_gain = 10; // pitch gain
-float derivative_gain = 1; // derivative gain
+float derivative_gain = 0; // derivative gain
 float integral_pitch = 0; // integral pitch
-float integral_gain = 0.1; // integral gain * Perror
+float integral_gain = 0; // integral gain * Perror
 float integral_saturate = 100; // max and min integral value
+
+// 
+// Week 4
+//
+int motor_address;
 
 struct Joystick
 {
@@ -89,7 +96,9 @@ int main (int argc, char *argv[])
 {
 
     setup_imu();
+    motor_address=wiringPiI2CSetup(0x56); 
     calibrate_imu();
+    motor_enable();
     setup_joystick();
     signal(SIGINT, &trap);
     sleep(5);
@@ -99,11 +108,13 @@ int main (int argc, char *argv[])
       joystick_data=*shared_memory;
       read_imu();
       update_filter();
-      // safety_check();
-      set_motors();
+      safety_check();
+      set_motor_values();
+      set_motors(motor_commands[0], motor_commands[1], motor_commands[2], motor_commands[3]);
       // printf("%.4f %.4f %.4f %.4f %.4f %.4f %.4f\n",program_time,
       //    roll_angle, roll_accel, roll_gyro_int,
       //    pitch_angle, pitch_accel, pitch_gyro_int);
+      sleep(.01);
     }
 
     return 0;
@@ -310,7 +321,7 @@ void trap(int signal)
   motor_commands[1]=0;
   motor_commands[2]=0;
   motor_commands[3]=0;
-  set_motors();
+  set_motor_values();
   printf("Control+C: killing motors and ending program\n\r");
   run_program=0;
 }
@@ -344,7 +355,7 @@ void kill_motors(const char* reason)
   motor_commands[1]=0;
   motor_commands[2]=0;
   motor_commands[3]=0;
-  set_motors();
+  set_motor_values();
   printf("safety: %s — killing motors and ending program\n", reason);
   run_program=0;
 }
@@ -374,7 +385,7 @@ void safety_check()
     kill_motors("joystick timeout");
 }
 
-void set_motors()
+void set_motor_values()
 {
   /* thrust */
   float joystick_thrust_value = 0; // temp variable of joystick
@@ -443,7 +454,228 @@ void set_motors()
   motor_commands[1] = (int)(thrust - pid);
   motor_commands[3] = (int)(thrust - pid);
 
-  printf("%.4f %d %d %.4f %.4f %.4f\n", program_time,
-         motor_commands[0], motor_commands[1],
-         thrust, pitch_desired * 10.0, pitch_measured * 10.0);
+
+  printf("%d %d %d %d\n", motor_commands[0],
+         motor_commands[1], motor_commands[2],
+         motor_commands[3]);
+}
+
+void motor_enable()
+{
+  
+    uint8_t motor_id=0;
+    uint8_t special_command=0;
+    uint16_t commanded_speed_0=1000;    
+    uint16_t commanded_speed_1=0;
+    uint16_t commanded_speed=0;
+    uint8_t data[2]; 
+    
+    int cal_delay=50;
+    
+    for(int i=0;i<1000;i++)
+    {
+    
+      motor_id=0;
+      commanded_speed=0;
+      data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]); 
+      
+      
+      usleep(cal_delay);   
+      motor_id=1;
+      commanded_speed=0;
+      data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]);      
+      
+      usleep(cal_delay); 
+      motor_id=2;
+      commanded_speed=0;
+      data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]);   
+   
+      
+      usleep(cal_delay);   
+      motor_id=3;
+      commanded_speed=0;
+      data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]);       
+      usleep(cal_delay);
+
+    }
+     
+    for(int i=0;i<2000;i++)
+    {
+    
+      motor_id=0;
+      commanded_speed=50;
+      data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]); 
+      
+      
+      usleep(cal_delay);   
+      motor_id=1;
+      commanded_speed=50;
+      data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]);      
+      
+      usleep(cal_delay); 
+      motor_id=2;
+      commanded_speed=50;
+      data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]);   
+   
+      
+      usleep(cal_delay);   
+      motor_id=3;
+      commanded_speed=50;
+      data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]);       
+      usleep(cal_delay);
+
+    }
+    
+     
+    for(int i=0;i<500;i++)
+    {
+    
+      motor_id=0;
+      commanded_speed=0;
+      data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]); 
+      
+      
+      usleep(cal_delay);   
+      motor_id=1;
+      commanded_speed=0;
+      data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]);      
+      
+      usleep(cal_delay); 
+      motor_id=2;
+      commanded_speed=0;
+      data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]);   
+   
+      
+      usleep(cal_delay);   
+      motor_id=3;
+      commanded_speed=0;
+      data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]);       
+      usleep(cal_delay);
+
+    }
+
+}
+
+
+void set_motors(int motor0, int motor1, int motor2, int motor3)
+{
+    printf("%d %d %d %d\n", motor0, motor1, motor2, motor3);
+
+    if(motor0<0)
+      motor0=0;
+    if(motor0>2000)
+      motor0=2000;
+    if(motor1<0)
+      motor1=0;
+    if(motor1>2000)
+      motor1=2000;
+    if(motor2<0)
+      motor2=0;
+    if(motor2>2000)
+      motor2=2000;
+    if(motor3<0)
+      motor3=0;
+    if(motor3>2000)
+      motor3=2000;
+      
+    
+    
+    uint8_t motor_id=0;
+    uint8_t special_command=0;
+    uint16_t commanded_speed_0=1000;    
+    uint16_t commanded_speed_1=0;
+    uint16_t commanded_speed=0;
+    uint8_t data[2]; 
+    
+   // wiringPiI2CWriteReg8(motor_address, 0x00,data[0] );
+    //wiringPiI2CWrite (motor_address,data[0]) ;
+    int com_delay=500;
+   
+    motor_id=0;
+    commanded_speed=motor0;
+    data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
+    data[1]=commanded_speed&0x7f;    
+    wiringPiI2CWrite(motor_address,data[0]);     
+    usleep(com_delay);    
+    wiringPiI2CWrite(motor_address,data[1]);  
+ 
+    
+    usleep(com_delay);   
+    motor_id=1;
+    commanded_speed=motor1;
+    data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
+    data[1]=commanded_speed&0x7f;    
+    wiringPiI2CWrite(motor_address,data[0]);     
+    usleep(com_delay);    
+    wiringPiI2CWrite(motor_address,data[1]);      
+  
+    usleep(com_delay); 
+    motor_id=2;
+    commanded_speed=motor2;
+    data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
+    data[1]=commanded_speed&0x7f;    
+    wiringPiI2CWrite(motor_address,data[0]);     
+    usleep(com_delay);    
+    wiringPiI2CWrite(motor_address,data[1]);   
+
+    
+    usleep(com_delay);   
+    motor_id=3;
+    commanded_speed=motor3;
+    data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
+    data[1]=commanded_speed&0x7f;    
+    wiringPiI2CWrite(motor_address,data[0]);     
+    usleep(com_delay);    
+    wiringPiI2CWrite(motor_address,data[1]);    
+    usleep(com_delay);
+
+
 }
