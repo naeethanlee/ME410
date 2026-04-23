@@ -96,12 +96,11 @@ int main (int argc, char *argv[])
 {
 
     setup_imu();
-    motor_address=wiringPiI2CSetup(0x56); 
     calibrate_imu();
+    motor_address=wiringPiI2CSetup(0x56); 
     motor_enable();
     setup_joystick();
     signal(SIGINT, &trap);
-    sleep(5);
 
     while(run_program==1)
     {
@@ -114,7 +113,6 @@ int main (int argc, char *argv[])
       // printf("%.4f %.4f %.4f %.4f %.4f %.4f %.4f\n",program_time,
       //    roll_angle, roll_accel, roll_gyro_int,
       //    pitch_angle, pitch_accel, pitch_gyro_int);
-      sleep(.01);
     }
 
     return 0;
@@ -392,7 +390,7 @@ void set_motor_values()
   joystick_thrust_value = joystick_data.thrust - 128;
 
   // lerp
-  thrust = thrust_neutral - (joystick_thrust_value / 128 * thrust_amplitude);
+  thrust = thrust_neutral - (joystick_thrust_value / 128.0 * thrust_amplitude);
 
   /* pitch */
   //
@@ -449,10 +447,10 @@ void set_motor_values()
   // PID combined
   float pid = (pitch_gain * pitch_error) - (derivative_gain * imu_data[5]) - (integral_pitch);
 
-  motor_commands[0] = (int)(thrust + pid);
-  motor_commands[2] = (int)(thrust + pid);
-  motor_commands[1] = (int)(thrust - pid);
-  motor_commands[3] = (int)(thrust - pid);
+  motor_commands[0] = 500;
+  motor_commands[2] = 500;
+  motor_commands[1] = 500;
+  motor_commands[3] = 500;
 
 
   printf("%d %d %d %d\n", motor_commands[0],
