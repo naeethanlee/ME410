@@ -447,10 +447,10 @@ void set_motor_values()
   // PID combined
   float pid = (pitch_gain * pitch_error) - (derivative_gain * imu_data[5]) - (integral_pitch);
 
-  motor_commands[0] = 500;
-  motor_commands[2] = 500;
-  motor_commands[1] = 500;
-  motor_commands[3] = 500;
+  motor_commands[0] = (int)(thrust + pid);
+  motor_commands[2] = (int)(thrust + pid);
+  motor_commands[1] = (int)(thrust - pid);
+  motor_commands[3] = (int)(thrust - pid);
 
 
   printf("%d %d %d %d\n", motor_commands[0],
