@@ -273,7 +273,6 @@ int setup_imu()
     wiringPiI2CWriteReg8(gyro_address, 0x0f, 0x01);//set gyro to +-1000dps
     wiringPiI2CWriteReg8(gyro_address, 0x01, 0x03);//set data rate and bandwith
     
-    
     sleep(1);
   }
   return 0;

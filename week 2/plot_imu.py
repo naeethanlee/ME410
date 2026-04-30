@@ -44,10 +44,10 @@ seven = [row[6] for row in data]
 
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
 
-ax1.plot(t, roll_filt,  label='Motor 1', linewidth=1)
-ax1.plot(t, roll_accel, label='Motor 2',   linewidth=1, linestyle='--')
-ax1.plot(t, roll_gyro,  label='Motor 3',      linewidth=1, linestyle=':')
-ax1.plot(t, pitch_filt,  label='Motor 4', linewidth=1)
+# ax1.plot(t, roll_filt,  label='Motor 1', linewidth=1)
+# ax1.plot(t, roll_accel, label='Motor 2',   linewidth=1, linestyle='--')
+# ax1.plot(t, roll_gyro,  label='Motor 3',      linewidth=1, linestyle=':')
+# ax1.plot(t, pitch_filt,  label='Motor 4', linewidth=1)
 ax1.plot(t, pitch_accel,  label='Filtered Pitch x 100', linewidth=1)
 ax1.plot(t, seven,  label='Desired Pitch x 100', linewidth=1)
 ax1.set_ylabel('Roll Angle (deg)')
