@@ -9,7 +9,8 @@
 #include <sys/shm.h>
 #include <sys/stat.h>
 
-//gcc -o week1 week_1_student.cpp -lwiringPi  -lm
+// gcc -o wk2_student wk2_student.cpp -lwiringPi -lm
+// scp week2_student.cpp pi@10.42.0.1:/home/pi/flight/wk2_student.cpp
 
 #define GYRO_LIMIT 300.0f
 #define ROLL_LIMIT 45.0f
@@ -62,8 +63,8 @@ float thrust=0;
 float thrust_neutral=800; // neutral thrust value
 float thrust_amplitude=100; // joystick thrust read
 float pitch_amplitude=10; // joystick pitch read
-float pitch_gain = 10; // pitch gain
-float derivative_gain = 0; // derivative gain
+float pitch_gain = 30; // pitch gain 30
+float derivative_gain = 5; // derivative gain 5
 float integral_pitch = 0; // integral pitch
 float integral_gain = 0; // integral gain * Perror
 float integral_saturate = 100; // max and min integral value
@@ -110,9 +111,6 @@ int main (int argc, char *argv[])
       safety_check();
       set_motor_values();
       set_motors(motor_commands[0], motor_commands[1], motor_commands[2], motor_commands[3]);
-      // printf("%.4f %.4f %.4f %.4f %.4f %.4f %.4f\n",program_time,
-      //    roll_angle, roll_accel, roll_gyro_int,
-      //    pitch_angle, pitch_accel, pitch_gyro_int);
     }
 
     return 0;
@@ -379,8 +377,8 @@ void safety_check()
     last_sequence_num=joystick_data.sequence_num;
     last_joystick_time=program_time;
   }
-  else if(program_time - last_joystick_time > JOYSTICK_TIMEOUT)
-    kill_motors("joystick timeout");
+  // else if(program_time - last_joystick_time > JOYSTICK_TIMEOUT)
+  //   kill_motors("joystick timeout");
 }
 
 void set_motor_values()
@@ -452,10 +450,17 @@ void set_motor_values()
   motor_commands[1] = (int)(thrust - pid);
   motor_commands[3] = (int)(thrust - pid);
 
+  // motor_commands[0] = 500;
+  // motor_commands[2] = 500;
+  // motor_commands[1] = 500;
+  // motor_commands[3] = 500;
 
-  printf("%d %d %d %d\n", motor_commands[0],
-         motor_commands[1], motor_commands[2],
-         motor_commands[3]);
+
+  // printf("%d %d %d %d\n", motor_commands[0],
+  //        motor_commands[1], motor_commands[2],
+  //        motor_commands[3]);
+  printf("%.4f %d %d %d %d %.4f %.4f\n",program_time, motor_commands[0], motor_commands[1], 
+        motor_commands[2], motor_commands[3], pitch_angle * 100, pitch_desired * 100);
 }
 
 void motor_enable()
@@ -605,7 +610,7 @@ void motor_enable()
 
 void set_motors(int motor0, int motor1, int motor2, int motor3)
 {
-    printf("%d %d %d %d\n", motor0, motor1, motor2, motor3);
+    // printf("%d %d %d %d\n", motor0, motor1, motor2, motor3);
 
     if(motor0<0)
       motor0=0;
