@@ -9,7 +9,7 @@
 #include <sys/shm.h>
 #include <sys/stat.h>
 
-// gcc -o wk2_student wk2_student.cpp -lwiringPi -lm
+// gcc -o flight/wk2_student flight/wk2_student.cpp -lwiringPi -lm
 // scp week2_student.cpp pi@10.42.0.1:/home/pi/flight/wk2_student.cpp
 
 #define GYRO_LIMIT 300.0f
@@ -34,6 +34,7 @@ void set_motors(int motor0, int motor1, int motor2, int motor3);
 
 //global variables
 int accel_address,gyro_address;
+int print_counter = 0;
 float x_accel_calibration=0;
 float y_accel_calibration=0;
 float z_accel_calibration=0;
@@ -63,11 +64,11 @@ float thrust=0;
 float thrust_neutral=800; // neutral thrust value
 float thrust_amplitude=100; // joystick thrust read
 float pitch_amplitude=10; // joystick pitch read
-float pitch_gain = 30; // pitch gain 30
-float derivative_gain = 5; // derivative gain 5
+float pitch_gain = 10; // pitch gain 30
+float derivative_gain = 6; // derivative gain 5
 float integral_pitch = 0; // integral pitch
-float integral_gain = 0; // integral gain * Perror
-float integral_saturate = 100; // max and min integral value
+float integral_gain = 2; // integral gain * Perror
+float integral_saturate = 200; // max and min integral value
 
 // 
 // Week 4
@@ -442,7 +443,7 @@ void set_motor_values()
 
 
   // PID combined
-  float pid = (pitch_gain * pitch_error) - (derivative_gain * imu_data[5]) - (integral_pitch);
+  float pid = (pitch_gain * pitch_error) - (derivative_gain * imu_data[5]) + (integral_pitch);
 
   motor_commands[0] = (int)(thrust + pid);
   motor_commands[2] = (int)(thrust + pid);
@@ -458,7 +459,9 @@ void set_motor_values()
   // printf("%d %d %d %d\n", motor_commands[0],
   //        motor_commands[1], motor_commands[2],
   //        motor_commands[3]);
-  printf("%.4f %d %d %d %d %.4f %.4f\n",program_time, motor_commands[0], motor_commands[1], 
+  print_counter++;
+  if(print_counter%20==0)
+    printf("%.4f %d %d %d %d %.4f %.4f\n",program_time, motor_commands[0], motor_commands[1], 
         motor_commands[2], motor_commands[3], pitch_angle * 100, pitch_desired * 100);
 }
 
