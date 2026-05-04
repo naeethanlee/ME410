@@ -66,7 +66,7 @@ float dt=0; // timestep in seconds
 // Milestone 3
 int motor_commands[] = {0, 0, 0, 0}; // 0 and 2 forward, 1 and 3 back(left then right)
 float thrust=0;
-float thrust_neutral=800; // neutral thrust value
+float thrust_neutral=650;//800; // neutral thrust value
 float thrust_amplitude=100; // joystick thrust read
 float pitch_amplitude=10; // joystick pitch read
 float pitch_gain = 10; // pitch gain 30
