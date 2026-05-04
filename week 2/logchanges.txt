@@ -1,0 +1,20 @@
+1) Integral max to 500
+2) pid adds +
+3) d up to 5-6
+4) add global print ct to reduce lag
+
+--
+holy f finally decent
+// Milestone 3
+int motor_commands[] = {0, 0, 0, 0}; // 0 and 2 forward, 1 and 3 back(left then right)
+float thrust=0;
+float thrust_neutral=800; // neutral thrust value
+float thrust_amplitude=100; // joystick thrust read
+float pitch_amplitude=10; // joystick pitch read
+float pitch_gain = 7; // pitch gain 30
+float derivative_gain = .80; // derivative gain 5
+float integral_pitch = 0; // integral pitch
+float integral_gain = .13; // integral gain * Perror
+float integral_saturate = 300; // max and min integral valu
+
+--
