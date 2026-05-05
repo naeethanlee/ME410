@@ -20,8 +20,8 @@ type $env:USERPROFILE\.ssh\id_rsa.pub | ssh pi@10.42.0.1 "mkdir -p ~/.ssh && cat
 #define GYRO_LIMIT 300.0f
 #define ROLL_LIMIT 45.0f
 #define PITCH_LIMIT 45.0f
-#define JOYSTICK_TIMEOUT 0.35f
-#define THRUST_MAX 1200.0f
+#define JOYSTICK_TIMEOUT 0.99f
+#define THRUST_MAX 2000.0f
 #define THRUST_MIN 0.0f
 
 
@@ -63,12 +63,33 @@ float pitch_gyro_int=0;// gyro-integrated pitch (for graphing)
 float program_time=0; // elapsed time in seconds
 float dt=0; // timestep in seconds
 
+
 // Milestone 3
 int motor_commands[] = {0, 0, 0, 0}; // 0 and 2 forward, 1 and 3 back(left then right)
 int motor_paused = 1; // start paused; A to pause, Y to run
 float thrust=0;
-float thrust_neutral=650; // neutral thrust value
+float thrust_neutral=600; // neutral thrust value
 float thrust_amplitude=100; // joystick thrust read
+float pitch_amplitude=10; // joystick pitch read
+float pitch_gain = 10; // pitch P gain
+float derivative_gain = 3; // pitch D gain
+float integral_pitch = 0; // integral pitch
+float integral_gain = 0.3; // pitch I gain
+float integral_saturate = 30; // max and min integral value
+
+float roll_amplitude = 10; // joystick roll read (degrees max)
+float roll_gain = 5; // roll P gain
+float roll_derivative_gain = 2.2; // roll D gain
+float integral_roll = 0; // roll integral accumulator
+float integral_gain_roll = 0.05; // roll I gain
+float integral_saturate_roll = 35; // roll integral clamp
+
+/* yaw test zero
+int motor_commands[] = {0, 0, 0, 0}; // 0 and 2 forward, 1 and 3 back(left then right)
+int motor_paused = 1; // start paused; A to pause, Y to run
+float thrust=0;
+float thrust_neutral=650; // neutral thrust value
+float thrust_amplitude=0; // joystick thrust read
 float pitch_amplitude=10; // joystick pitch read
 float pitch_gain = 0; // pitch P gain (zeroed for yaw test)
 float derivative_gain = 0; // pitch D gain (zeroed for yaw test)
@@ -82,8 +103,8 @@ float roll_derivative_gain = 0; // roll D gain (zeroed for yaw test)
 float integral_roll = 0; // roll integral accumulator
 float integral_gain_roll = 0; // roll I gain (zeroed for yaw test)
 float integral_saturate_roll = 350; // roll integral clamp
-
-float yaw_gain = 3.0; // yaw P gain
+*/
+float yaw_gain = 7.0; // yaw P gain
 float yaw_amplitude = 100.0; // max commanded yaw rate (deg/s)
 
 //
@@ -329,11 +350,7 @@ void update_filter()
 
 void trap(int signal)
 {
-  motor_commands[0]=0;
-  motor_commands[1]=0;
-  motor_commands[2]=0;
-  motor_commands[3]=0;
-  set_motor_values();
+  set_motors(0, 0, 0, 0);
   printf("Control+C: killing motors and ending program\n\r");
   run_program=0;
 }
@@ -363,11 +380,7 @@ void setup_joystick()
 
 void kill_motors(const char* reason)
 {
-  motor_commands[0]=0;
-  motor_commands[1]=0;
-  motor_commands[2]=0;
-  motor_commands[3]=0;
-  set_motor_values();
+  set_motors(0, 0, 0, 0);
   printf("safety: %s — killing motors and ending program\n", reason);
   run_program=0;
 }
@@ -397,6 +410,8 @@ void safety_check()
   if(joystick_data.key3==1)
   {
     motor_paused = 0;
+    integral_pitch = 0;
+    integral_roll = 0;
     printf("motors RUNNING\n");
   }
 
@@ -405,8 +420,8 @@ void safety_check()
     last_sequence_num=joystick_data.sequence_num;
     last_joystick_time=program_time;
   }
-  // else if(program_time - last_joystick_time > JOYSTICK_TIMEOUT)
-  //   kill_motors("joystick timeout");
+  else if(program_time - last_joystick_time > JOYSTICK_TIMEOUT)
+    kill_motors("joystick timeout");
 }
 
 void set_motor_values()
@@ -454,11 +469,14 @@ void set_motor_values()
   //        imu_data[5], thrust);
   
   // integral
-  integral_pitch += integral_gain * pitch_error;
-  if(integral_pitch > integral_saturate)
-    integral_pitch = integral_saturate;
-  else if(integral_pitch < -integral_saturate)
-    integral_pitch = -integral_saturate;
+  if(!motor_paused)
+  {
+    integral_pitch += integral_gain * pitch_error;
+    if(integral_pitch > integral_saturate)
+      integral_pitch = integral_saturate;
+    else if(integral_pitch < -integral_saturate)
+      integral_pitch = -integral_saturate;
+  }
 
   // motor_commands[0] = (int)(thrust - (integral_pitch)); // motor 1
   // motor_commands[2] = (int)(thrust - (integral_pitch));
@@ -481,11 +499,14 @@ void set_motor_values()
   roll_desired = -(joystick_roll_value / 128.0 * roll_amplitude);
   float roll_error = roll_desired - roll_measured;
 
-  integral_roll += integral_gain_roll * roll_error;
-  if(integral_roll > integral_saturate_roll)
-    integral_roll = integral_saturate_roll;
-  else if(integral_roll < -integral_saturate_roll)
-    integral_roll = -integral_saturate_roll;
+  if(!motor_paused)
+  {
+    integral_roll += integral_gain_roll * roll_error;
+    if(integral_roll > integral_saturate_roll)
+      integral_roll = integral_saturate_roll;
+    else if(integral_roll < -integral_saturate_roll)
+      integral_roll = -integral_saturate_roll;
+  }
 
   // imu_data[4] is the roll rate (gyroY drives roll in the complementary filter)
   float roll_pid = (roll_gain * roll_error) - (roll_derivative_gain * imu_data[4]) + (integral_roll);
@@ -493,11 +514,11 @@ void set_motor_values()
   /* yaw */
   float joystick_yaw_value = (float)(joystick_data.yaw) - 128.0;
   float yaw_desired = joystick_yaw_value / 128.0 * yaw_amplitude; // desired yaw rate deg/s
-  float yaw_rate = imu_data[5]; // actual yaw rate from gyroZ
+  float yaw_rate = -imu_data[3]; // yaw rate, negated to match yaw direction convention
   float yaw_pid = yaw_gain * (yaw_desired - yaw_rate);
 
   // X-frame mixing: diagonal pairs share spin direction
-  // if yaw response is backwards, flip sign of yaw_pid
+  // if yaw response is backwards flip sign of yaw_pid
   motor_commands[0] = (int)(thrust + pitch_pid - roll_pid + yaw_pid); // front-left
   motor_commands[1] = (int)(thrust - pitch_pid - roll_pid - yaw_pid); // back-left
   motor_commands[2] = (int)(thrust + pitch_pid + roll_pid - yaw_pid); // front-right
@@ -512,10 +533,10 @@ void set_motor_values()
   }
 
   print_counter++;
-  if(true)
+  if(print_counter % 20 == 0)
     printf("%.4f %d %d %d %d %.4f %.4f %.4f %.4f %.4f %.4f %.4f\n", program_time,
            motor_commands[0], motor_commands[1], motor_commands[2], motor_commands[3],
-           pitch_angle, pitch_desired, roll_angle, roll_desired, thrust, yaw_rate, yaw_desired);
+           pitch_angle, pitch_desired, roll_angle, roll_desired, thrust, yaw_rate*10, yaw_desired*10);
 }
 
 void motor_enable()

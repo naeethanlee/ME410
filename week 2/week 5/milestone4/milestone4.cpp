@@ -20,8 +20,8 @@ type $env:USERPROFILE\.ssh\id_rsa.pub | ssh pi@10.42.0.1 "mkdir -p ~/.ssh && cat
 #define GYRO_LIMIT 300.0f
 #define ROLL_LIMIT 45.0f
 #define PITCH_LIMIT 45.0f
-#define JOYSTICK_TIMEOUT 0.35f
-#define THRUST_MAX 1200.0f
+#define JOYSTICK_TIMEOUT 0.99f
+#define THRUST_MAX 2000.0f
 #define THRUST_MIN 0.0f
 
 
@@ -49,7 +49,7 @@ float z_gyro_calibration=0;
 float roll_calibration=0;
 float pitch_calibration=0;
 float accel_z_calibration=0;
-float imu_data[6]; //accel xyz,  gyro xyz,
+float imu_data[6]; //accel xyz,  gyro xyz, 
 float time_curr=0;
 float time_prev=0;
 struct timespec te;
@@ -63,12 +63,32 @@ float pitch_gyro_int=0;// gyro-integrated pitch (for graphing)
 float program_time=0; // elapsed time in seconds
 float dt=0; // timestep in seconds
 
+/*
 // Milestone 3
 int motor_commands[] = {0, 0, 0, 0}; // 0 and 2 forward, 1 and 3 back(left then right)
 int motor_paused = 1; // start paused; A to pause, Y to run
 float thrust=0;
-float thrust_neutral=650; // neutral thrust value
+float thrust_neutral=600; // neutral thrust value
 float thrust_amplitude=100; // joystick thrust read
+float pitch_amplitude=10; // joystick pitch read
+float pitch_gain = 10; // pitch P gain
+float derivative_gain = 3; // pitch D gain
+float integral_pitch = 0; // integral pitch
+float integral_gain = 0.3; // pitch I gain
+float integral_saturate = 30; // max and min integral value
+
+float roll_amplitude = 10; // joystick roll read (degrees max)
+float roll_gain = 5; // roll P gain
+float roll_derivative_gain = 2.2; // roll D gain
+float integral_roll = 0; // roll integral accumulator
+float integral_gain_roll = 0.05; // roll I gain
+float integral_saturate_roll = 35; // roll integral clamp
+*/
+int motor_commands[] = {0, 0, 0, 0}; // 0 and 2 forward, 1 and 3 back(left then right)
+int motor_paused = 1; // start paused; A to pause, Y to run
+float thrust=0;
+float thrust_neutral=650; // neutral thrust value
+float thrust_amplitude=0; // joystick thrust read
 float pitch_amplitude=10; // joystick pitch read
 float pitch_gain = 0; // pitch P gain (zeroed for yaw test)
 float derivative_gain = 0; // pitch D gain (zeroed for yaw test)
@@ -83,7 +103,7 @@ float integral_roll = 0; // roll integral accumulator
 float integral_gain_roll = 0; // roll I gain (zeroed for yaw test)
 float integral_saturate_roll = 350; // roll integral clamp
 
-float yaw_gain = 3.0; // yaw P gain
+float yaw_gain = 7.0; // yaw P gain
 float yaw_amplitude = 100.0; // max commanded yaw rate (deg/s)
 
 //
@@ -115,7 +135,7 @@ int main (int argc, char *argv[])
 
     setup_imu();
     calibrate_imu();
-    motor_address=wiringPiI2CSetup(0x56);
+    motor_address=wiringPiI2CSetup(0x56); 
     motor_enable();
     setup_joystick();
     signal(SIGINT, &trap);
@@ -141,7 +161,7 @@ void calibrate_imu()
   float z_gyro_calibration_sum=0;
   float pitch_calibration_sum=0;
   float roll_calibration_sum=0;
-
+  
   // avg 1000 samples stationary to hardware offset
   for(int i = 0; i < 1000; i++){
     read_imu();
@@ -155,7 +175,7 @@ void calibrate_imu()
     pitch_calibration_sum+=atan2(imu_data[1], imu_data[0])*180.0/M_PI;
     roll_calibration_sum+=atan2(imu_data[2], imu_data[0])*180.0/M_PI;
   }
-
+  
   //avg offsets, subtracted later in read_imu
   x_gyro_calibration=x_gyro_calibration_sum/1000;
   y_gyro_calibration=y_gyro_calibration_sum/1000;
@@ -169,10 +189,10 @@ void calibrate_imu()
 
 void read_imu()
 {
-  uint8_t address=0;//todo: set address value for accel x value
+  uint8_t address=0;//todo: set address value for accel x value 
   float ax=0;
   float az=0;
-  float ay=0;
+  float ay=0; 
   int vh=0;
   int vl=0;
   int vw=0;
@@ -183,79 +203,79 @@ void read_imu()
   //accel reads
 
   address=0x12;//accelX reg
-  vw=wiringPiI2CReadReg16(accel_address,address);
+  vw=wiringPiI2CReadReg16(accel_address,address);    
   //convert from 2's complement
   if(vw>0x8000)
   {
     vw=vw ^ 0xffff;
     vw=-vw-1;
-  }
-  imu_data[0]=((float)vw)*3.0/32768.0;//convert to g's
-  //imu_data[0]=(vw - x_accel_calibration)*3/32768;//convert to g's
-
+  }       
+  imu_data[0]=((float)vw)*3.0/32768.0;//convert to g's     
+  //imu_data[0]=(vw - x_accel_calibration)*3/32768;//convert to g's  
+  
   address=0x14;//accelY reg
-  vw=wiringPiI2CReadReg16(accel_address,address);
+  vw=wiringPiI2CReadReg16(accel_address,address);   
   //convert from 2's complement
   if(vw>0x8000)
   {
     vw=vw ^ 0xffff;
     vw=-vw-1;
-  }
-  imu_data[1]=((float)vw)*3.0/32768.0;//convert to g's
-  //imu_data[1]=(vw - y_accel_calibration)*3/32768;//convert to g's
-
+  } 
+  imu_data[1]=((float)vw)*3.0/32768.0;//convert to g's           
+  //imu_data[1]=(vw - y_accel_calibration)*3/32768;//convert to g's  
+  
   address=0x16;//accelZ reg
-  vw=wiringPiI2CReadReg16(accel_address,address);
-  //convert from 2's complement
+  vw=wiringPiI2CReadReg16(accel_address,address);   
+  //convert from 2's complement     
   if(vw>0x8000)
   {
     vw=vw ^ 0xffff;
     vw=-vw-1;
-  }
-  imu_data[2]=((float)vw)*3.0/32768.0;//convert to g's
-  //imu_data[2]=(vw - z_accel_calibration)*3/32768;//convert to g's
-
-
-
+  }        
+  imu_data[2]=((float)vw)*3.0/32768.0;//convert to g's    
+  //imu_data[2]=(vw - z_accel_calibration)*3/32768;//convert to g's  
+  
+  
+     
 
   //gyro reads
 
   address=0x02;//gyroX reg
-  vw=wiringPiI2CReadReg16(gyro_address,address);
-  //convert from 2's complement
+  vw=wiringPiI2CReadReg16(gyro_address,address);   
+  //convert from 2's complement          
   if(vw>0x8000)
   {
     vw=vw ^ 0xffff;
     vw=-vw-1;
-  }
+  }          
   imu_data[3]=((float)vw )*1000.0/32768.0 - x_gyro_calibration;//convert to degrees/sec
-
+  
   address=0x04;//gyroY reg
-  vw=wiringPiI2CReadReg16(gyro_address,address);
-  //convert from 2's complement
+  vw=wiringPiI2CReadReg16(gyro_address,address);    
+  //convert from 2's complement              
   if(vw>0x8000)
   {
     vw=vw ^ 0xffff;
     vw=-vw-1;
-  }
+  }          
   imu_data[4]=((float)vw)*1000.0/32768.0 - y_gyro_calibration;//convert to degrees/sec
-
+  
   address=0x06;//gyroZ reg
-  vw=wiringPiI2CReadReg16(gyro_address,address);
-  //convert from 2's complement
+  vw=wiringPiI2CReadReg16(gyro_address,address);   
+  //convert from 2's complement               
   if(vw>0x8000)
   {
     vw=vw ^ 0xffff;
     vw=-vw-1;
-  }
-  imu_data[5]=((float)vw)*1000.0/32768.0 - z_gyro_calibration;//convert to degrees/sec
+  }          
+  imu_data[5]=((float)vw)*1000.0/32768.0 - z_gyro_calibration;//convert to degrees/sec  
 
   pitch_measure=-((atan2(imu_data[1], imu_data[0])*180.0/M_PI) - pitch_calibration);
   roll_measure=(atan2(imu_data[2], imu_data[0])*180.0/M_PI) - roll_calibration;
 
   pitch_accel=pitch_measure;
   roll_accel=roll_measure;
-
+  
   //printf("%10.5f %10.5f %10.5f %10.5f %10.5f\n", imu_data[3], imu_data[4], imu_data[5], pitch_measure, roll_measure);
 }
 
@@ -263,11 +283,11 @@ void read_imu()
 int setup_imu()
 {
   wiringPiSetup ();
-
+  
   //setup imu on I2C
-  accel_address=wiringPiI2CSetup (0x19) ;
-  gyro_address=wiringPiI2CSetup (0x69) ;
-
+  accel_address=wiringPiI2CSetup (0x19) ; 
+  gyro_address=wiringPiI2CSetup (0x69) ; 
+  
   if(accel_address==-1)
   {
     printf("-----cant connect to accel I2C device %d --------\n",accel_address);
@@ -282,14 +302,14 @@ int setup_imu()
   {
     printf("all i2c devices detected\n");
     sleep(1);
-    wiringPiI2CWriteReg8(accel_address, 0x7d, 0x04); //power on accel
-    wiringPiI2CWriteReg8(accel_address, 0x41, 0x00); //accel range to +_3g
+    wiringPiI2CWriteReg8(accel_address, 0x7d, 0x04); //power on accel    
+    wiringPiI2CWriteReg8(accel_address, 0x41, 0x00); //accel range to +_3g    
     wiringPiI2CWriteReg8(accel_address, 0x40, 0x89); //high speed filtered accel
-
+    
     wiringPiI2CWriteReg8(gyro_address, 0x11, 0x00);//power on gyro
     wiringPiI2CWriteReg8(gyro_address, 0x0f, 0x01);//set gyro to +-1000dps
     wiringPiI2CWriteReg8(gyro_address, 0x01, 0x03);//set data rate and bandwith
-
+    
     sleep(1);
   }
   return 0;
@@ -329,11 +349,7 @@ void update_filter()
 
 void trap(int signal)
 {
-  motor_commands[0]=0;
-  motor_commands[1]=0;
-  motor_commands[2]=0;
-  motor_commands[3]=0;
-  set_motor_values();
+  set_motors(0, 0, 0, 0);
   printf("Control+C: killing motors and ending program\n\r");
   run_program=0;
 }
@@ -363,11 +379,7 @@ void setup_joystick()
 
 void kill_motors(const char* reason)
 {
-  motor_commands[0]=0;
-  motor_commands[1]=0;
-  motor_commands[2]=0;
-  motor_commands[3]=0;
-  set_motor_values();
+  set_motors(0, 0, 0, 0);
   printf("safety: %s — killing motors and ending program\n", reason);
   run_program=0;
 }
@@ -397,6 +409,8 @@ void safety_check()
   if(joystick_data.key3==1)
   {
     motor_paused = 0;
+    integral_pitch = 0;
+    integral_roll = 0;
     printf("motors RUNNING\n");
   }
 
@@ -405,8 +419,8 @@ void safety_check()
     last_sequence_num=joystick_data.sequence_num;
     last_joystick_time=program_time;
   }
-  // else if(program_time - last_joystick_time > JOYSTICK_TIMEOUT)
-  //   kill_motors("joystick timeout");
+  else if(program_time - last_joystick_time > JOYSTICK_TIMEOUT)
+    kill_motors("joystick timeout");
 }
 
 void set_motor_values()
@@ -421,7 +435,7 @@ void set_motor_values()
   /* pitch */
   //
   // proportional control
-  //
+  // 
   float pitch_error = 0;
   float pitch_measured = pitch_angle;
   float pitch_desired = 0;
@@ -429,7 +443,7 @@ void set_motor_values()
 
   // lerp
   pitch_desired = -(joystick_pitch_value / 128.0 * pitch_amplitude);
-
+  
   pitch_error = pitch_desired - pitch_measured; // pitch error calculation
 
   // front motors decrease, rear motors increase
@@ -452,13 +466,16 @@ void set_motor_values()
   // printf("%.4f %d %d %.4f %.4f %.4f\n",program_time,
   //        motor_commands[0], motor_commands[1], pitch_measured * 10,
   //        imu_data[5], thrust);
-
+  
   // integral
-  integral_pitch += integral_gain * pitch_error;
-  if(integral_pitch > integral_saturate)
-    integral_pitch = integral_saturate;
-  else if(integral_pitch < -integral_saturate)
-    integral_pitch = -integral_saturate;
+  if(!motor_paused)
+  {
+    integral_pitch += integral_gain * pitch_error;
+    if(integral_pitch > integral_saturate)
+      integral_pitch = integral_saturate;
+    else if(integral_pitch < -integral_saturate)
+      integral_pitch = -integral_saturate;
+  }
 
   // motor_commands[0] = (int)(thrust - (integral_pitch)); // motor 1
   // motor_commands[2] = (int)(thrust - (integral_pitch));
@@ -481,11 +498,14 @@ void set_motor_values()
   roll_desired = -(joystick_roll_value / 128.0 * roll_amplitude);
   float roll_error = roll_desired - roll_measured;
 
-  integral_roll += integral_gain_roll * roll_error;
-  if(integral_roll > integral_saturate_roll)
-    integral_roll = integral_saturate_roll;
-  else if(integral_roll < -integral_saturate_roll)
-    integral_roll = -integral_saturate_roll;
+  if(!motor_paused)
+  {
+    integral_roll += integral_gain_roll * roll_error;
+    if(integral_roll > integral_saturate_roll)
+      integral_roll = integral_saturate_roll;
+    else if(integral_roll < -integral_saturate_roll)
+      integral_roll = -integral_saturate_roll;
+  }
 
   // imu_data[4] is the roll rate (gyroY drives roll in the complementary filter)
   float roll_pid = (roll_gain * roll_error) - (roll_derivative_gain * imu_data[4]) + (integral_roll);
@@ -493,11 +513,11 @@ void set_motor_values()
   /* yaw */
   float joystick_yaw_value = (float)(joystick_data.yaw) - 128.0;
   float yaw_desired = joystick_yaw_value / 128.0 * yaw_amplitude; // desired yaw rate deg/s
-  float yaw_rate = imu_data[5]; // actual yaw rate from gyroZ
+  float yaw_rate = -imu_data[3]; // yaw rate, negated to match yaw direction convention
   float yaw_pid = yaw_gain * (yaw_desired - yaw_rate);
 
   // X-frame mixing: diagonal pairs share spin direction
-  // if yaw response is backwards, flip sign of yaw_pid
+  // if yaw response is backwards flip sign of yaw_pid
   motor_commands[0] = (int)(thrust + pitch_pid - roll_pid + yaw_pid); // front-left
   motor_commands[1] = (int)(thrust - pitch_pid - roll_pid - yaw_pid); // back-left
   motor_commands[2] = (int)(thrust + pitch_pid + roll_pid - yaw_pid); // front-right
@@ -512,150 +532,150 @@ void set_motor_values()
   }
 
   print_counter++;
-  if(true)
+  if(print_counter % 20 == 0)
     printf("%.4f %d %d %d %d %.4f %.4f %.4f %.4f %.4f %.4f %.4f\n", program_time,
            motor_commands[0], motor_commands[1], motor_commands[2], motor_commands[3],
-           pitch_angle, pitch_desired, roll_angle, roll_desired, thrust, yaw_rate, yaw_desired);
+           pitch_angle, pitch_desired, roll_angle, roll_desired, thrust, yaw_rate*10, yaw_desired*10);
 }
 
 void motor_enable()
 {
-
+  
     uint8_t motor_id=0;
     uint8_t special_command=0;
-    uint16_t commanded_speed_0=1000;
+    uint16_t commanded_speed_0=1000;    
     uint16_t commanded_speed_1=0;
     uint16_t commanded_speed=0;
-    uint8_t data[2];
-
+    uint8_t data[2]; 
+    
     int cal_delay=50;
-
+    
     for(int i=0;i<1000;i++)
     {
-
+    
       motor_id=0;
       commanded_speed=0;
       data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
-      data[1]=commanded_speed&0x7f;
-      wiringPiI2CWrite(motor_address,data[0]);
-      usleep(cal_delay);
-      wiringPiI2CWrite(motor_address,data[1]);
-
-
-      usleep(cal_delay);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]); 
+      
+      
+      usleep(cal_delay);   
       motor_id=1;
       commanded_speed=0;
       data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
-      data[1]=commanded_speed&0x7f;
-      wiringPiI2CWrite(motor_address,data[0]);
-      usleep(cal_delay);
-      wiringPiI2CWrite(motor_address,data[1]);
-
-      usleep(cal_delay);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]);      
+      
+      usleep(cal_delay); 
       motor_id=2;
       commanded_speed=0;
       data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
-      data[1]=commanded_speed&0x7f;
-      wiringPiI2CWrite(motor_address,data[0]);
-      usleep(cal_delay);
-      wiringPiI2CWrite(motor_address,data[1]);
-
-
-      usleep(cal_delay);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]);   
+   
+      
+      usleep(cal_delay);   
       motor_id=3;
       commanded_speed=0;
       data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
-      data[1]=commanded_speed&0x7f;
-      wiringPiI2CWrite(motor_address,data[0]);
-      usleep(cal_delay);
-      wiringPiI2CWrite(motor_address,data[1]);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]);       
       usleep(cal_delay);
 
     }
-
+     
     for(int i=0;i<2000;i++)
     {
-
+    
       motor_id=0;
       commanded_speed=50;
       data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
-      data[1]=commanded_speed&0x7f;
-      wiringPiI2CWrite(motor_address,data[0]);
-      usleep(cal_delay);
-      wiringPiI2CWrite(motor_address,data[1]);
-
-
-      usleep(cal_delay);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]); 
+      
+      
+      usleep(cal_delay);   
       motor_id=1;
       commanded_speed=50;
       data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
-      data[1]=commanded_speed&0x7f;
-      wiringPiI2CWrite(motor_address,data[0]);
-      usleep(cal_delay);
-      wiringPiI2CWrite(motor_address,data[1]);
-
-      usleep(cal_delay);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]);      
+      
+      usleep(cal_delay); 
       motor_id=2;
       commanded_speed=50;
       data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
-      data[1]=commanded_speed&0x7f;
-      wiringPiI2CWrite(motor_address,data[0]);
-      usleep(cal_delay);
-      wiringPiI2CWrite(motor_address,data[1]);
-
-
-      usleep(cal_delay);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]);   
+   
+      
+      usleep(cal_delay);   
       motor_id=3;
       commanded_speed=50;
       data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
-      data[1]=commanded_speed&0x7f;
-      wiringPiI2CWrite(motor_address,data[0]);
-      usleep(cal_delay);
-      wiringPiI2CWrite(motor_address,data[1]);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]);       
       usleep(cal_delay);
 
     }
-
-
+    
+     
     for(int i=0;i<500;i++)
     {
-
+    
       motor_id=0;
       commanded_speed=0;
       data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
-      data[1]=commanded_speed&0x7f;
-      wiringPiI2CWrite(motor_address,data[0]);
-      usleep(cal_delay);
-      wiringPiI2CWrite(motor_address,data[1]);
-
-
-      usleep(cal_delay);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]); 
+      
+      
+      usleep(cal_delay);   
       motor_id=1;
       commanded_speed=0;
       data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
-      data[1]=commanded_speed&0x7f;
-      wiringPiI2CWrite(motor_address,data[0]);
-      usleep(cal_delay);
-      wiringPiI2CWrite(motor_address,data[1]);
-
-      usleep(cal_delay);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]);      
+      
+      usleep(cal_delay); 
       motor_id=2;
       commanded_speed=0;
       data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
-      data[1]=commanded_speed&0x7f;
-      wiringPiI2CWrite(motor_address,data[0]);
-      usleep(cal_delay);
-      wiringPiI2CWrite(motor_address,data[1]);
-
-
-      usleep(cal_delay);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]);   
+   
+      
+      usleep(cal_delay);   
       motor_id=3;
       commanded_speed=0;
       data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
-      data[1]=commanded_speed&0x7f;
-      wiringPiI2CWrite(motor_address,data[0]);
-      usleep(cal_delay);
-      wiringPiI2CWrite(motor_address,data[1]);
+      data[1]=commanded_speed&0x7f;    
+      wiringPiI2CWrite(motor_address,data[0]);     
+      usleep(cal_delay);    
+      wiringPiI2CWrite(motor_address,data[1]);       
       usleep(cal_delay);
 
     }
@@ -683,56 +703,56 @@ void set_motors(int motor0, int motor1, int motor2, int motor3)
       motor3=0;
     if(motor3>THRUST_MAX)
       motor3=THRUST_MAX;
-
-
-
+      
+    
+    
     uint8_t motor_id=0;
     uint8_t special_command=0;
-    uint16_t commanded_speed_0=1000;
+    uint16_t commanded_speed_0=1000;    
     uint16_t commanded_speed_1=0;
     uint16_t commanded_speed=0;
-    uint8_t data[2];
-
+    uint8_t data[2]; 
+    
    // wiringPiI2CWriteReg8(motor_address, 0x00,data[0] );
     //wiringPiI2CWrite (motor_address,data[0]) ;
     int com_delay=500;
-
+   
     motor_id=0;
     commanded_speed=motor0;
     data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
-    data[1]=commanded_speed&0x7f;
-    wiringPiI2CWrite(motor_address,data[0]);
-    usleep(com_delay);
-    wiringPiI2CWrite(motor_address,data[1]);
-
-
-    usleep(com_delay);
+    data[1]=commanded_speed&0x7f;    
+    wiringPiI2CWrite(motor_address,data[0]);     
+    usleep(com_delay);    
+    wiringPiI2CWrite(motor_address,data[1]);  
+ 
+    
+    usleep(com_delay);   
     motor_id=1;
     commanded_speed=motor1;
     data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
-    data[1]=commanded_speed&0x7f;
-    wiringPiI2CWrite(motor_address,data[0]);
-    usleep(com_delay);
-    wiringPiI2CWrite(motor_address,data[1]);
-
-    usleep(com_delay);
+    data[1]=commanded_speed&0x7f;    
+    wiringPiI2CWrite(motor_address,data[0]);     
+    usleep(com_delay);    
+    wiringPiI2CWrite(motor_address,data[1]);      
+  
+    usleep(com_delay); 
     motor_id=2;
     commanded_speed=motor2;
     data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
-    data[1]=commanded_speed&0x7f;
-    wiringPiI2CWrite(motor_address,data[0]);
-    usleep(com_delay);
-    wiringPiI2CWrite(motor_address,data[1]);
+    data[1]=commanded_speed&0x7f;    
+    wiringPiI2CWrite(motor_address,data[0]);     
+    usleep(com_delay);    
+    wiringPiI2CWrite(motor_address,data[1]);   
 
-
-    usleep(com_delay);
+    
+    usleep(com_delay);   
     motor_id=3;
     commanded_speed=motor3;
     data[0]=0x80+(motor_id<<5)+(special_command<<4)+((commanded_speed>>7)&0x0f);
-    data[1]=commanded_speed&0x7f;
-    wiringPiI2CWrite(motor_address,data[0]);
-    usleep(com_delay);
-    wiringPiI2CWrite(motor_address,data[1]);
+    data[1]=commanded_speed&0x7f;    
+    wiringPiI2CWrite(motor_address,data[0]);     
+    usleep(com_delay);    
+    wiringPiI2CWrite(motor_address,data[1]);    
     usleep(com_delay);
 
 

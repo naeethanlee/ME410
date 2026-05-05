@@ -70,7 +70,7 @@ ax3.legend()
 ax3.grid(True)
 ax3.axhline(0, color='black', linewidth=0.5)
 
-ax4.plot(t, yaw_rate,    label='Yaw rate (gyroZ)', linewidth=1)
+ax4.plot(t, yaw_rate,    label='Yaw rate (gyroX)', linewidth=1)
 ax4.plot(t, yaw_desired, label='Yaw desired',       linewidth=1, linestyle='--')
 ax4.set_ylabel('deg/s')
 ax4.set_xlabel('Time (s)')
