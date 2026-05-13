@@ -68,7 +68,7 @@ float dt=0; // timestep in seconds
 int motor_commands[] = {0, 0, 0, 0}; // 0 and 2 forward, 1 and 3 back(left then right)
 int motor_paused = 1; // start paused; A to pause, Y to run
 float thrust=0;
-float thrust_neutral=600; // neutral thrust value
+float thrust_neutral=1100; // neutral thrust value
 float thrust_amplitude=100; // joystick thrust read
 float pitch_amplitude=10; // joystick pitch read
 float pitch_gain = 10; // pitch P gain
@@ -496,7 +496,7 @@ void set_motor_values()
   float roll_desired = 0;
   float joystick_roll_value = (float)(joystick_data.roll) - 128.0;
 
-  roll_desired = -(joystick_roll_value / 128.0 * roll_amplitude);
+  roll_desired = (joystick_roll_value / 128.0 * roll_amplitude);
   float roll_error = roll_desired - roll_measured;
 
   if(!motor_paused)
@@ -526,10 +526,10 @@ void set_motor_values()
 
   if(motor_paused)
   {
-    motor_commands[0] = 0;
-    motor_commands[1] = 0;
-    motor_commands[2] = 0;
-    motor_commands[3] = 0;
+    motor_commands[0] = 1;
+    motor_commands[1] = 1;
+    motor_commands[2] = 1;
+    motor_commands[3] = 1;
   }
 
   print_counter++;
