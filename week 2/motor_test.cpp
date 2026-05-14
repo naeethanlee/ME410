@@ -11,11 +11,11 @@
 #define GYRO_LIMIT 300.0f
 #define ROLL_LIMIT 45.0f
 #define PITCH_LIMIT 45.0f
-#define JOYSTICK_TIMEOUT 0.35f
+#define JOYSTICK_TIMEOUT 0.99f
 #define THRUST_MAX 2000f
 #define THRUST_MIN 0f
 
-// gcc -o motor_test motor_test.cpp -lwiringPi  -lm
+// gcc -o flight/motor_test flight/motor_test.cpp -lwiringPi  -lm
 // scp motor_test.cpp pi@10.42.0.1:/home/pi/flight/motor_test.cpp
 
 
@@ -59,7 +59,7 @@ float dt=0; // timestep in seconds
 // Milestone 3
 int motor_commands[] = {0, 0, 0, 0}; // 0 and 2 forward, 1 and 3 back(left then right)
 float thrust=0;
-float thrust_neutral=800; // neutral thrust value
+float thrust_neutral=0; // neutral thrust value
 float thrust_amplitude=100; // joystick thrust read
 float pitch_amplitude=10; // joystick pitch read
 float pitch_gain = 10; // pitch gain
@@ -239,6 +239,7 @@ void read_imu()
 
   pitch_accel=pitch_measure;
   roll_accel=roll_measure;
+  
   
   //printf("%10.5f %10.5f %10.5f %10.5f %10.5f\n", imu_data[3], imu_data[4], imu_data[5], pitch_measure, roll_measure);
 }
@@ -638,6 +639,7 @@ void update_filter()
   float A = 0.02f;
   roll_angle= roll_accel*A +(1.0f- A) *(imu_data[4]*dt + roll_angle);
   pitch_angle = pitch_accel* A+ (1.0f -A) * (imu_data[5]*dt+ pitch_angle);
+  printf("pitch amgle: %f\n", pitch_angle);
 }
 
 void safety_check()

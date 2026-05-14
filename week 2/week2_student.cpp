@@ -1,3 +1,5 @@
+
+
 #include <stdio.h>
 #include <wiringPi.h>
 #include <wiringPiI2C.h>
@@ -21,8 +23,8 @@ type $env:USERPROFILE\.ssh\id_rsa.pub | ssh pi@10.42.0.1 "mkdir -p ~/.ssh && cat
 #define ROLL_LIMIT 45.0f
 #define PITCH_LIMIT 45.0f
 #define JOYSTICK_TIMEOUT 0.99f
-#define THRUST_MAX 2000.0f
-#define THRUST_MIN 0.0f
+#define THRUST_MAX 2000
+#define THRUST_MIN 0
 
 
 int setup_imu();
@@ -68,8 +70,8 @@ float dt=0; // timestep in seconds
 int motor_commands[] = {0, 0, 0, 0}; // 0 and 2 forward, 1 and 3 back(left then right)
 int motor_paused = 1; // start paused; A to pause, Y to run
 float thrust=0;
-float thrust_neutral=1000; // neutral thrust value
-float thrust_amplitude=100; // joystick thrust read
+float thrust_neutral=1400; // neutral thrust value
+float thrust_amplitude=150; // joystick thrust read
 float pitch_amplitude=10; // joystick pitch read
 float pitch_gain = 10; // pitch P gain
 float derivative_gain = 3; // pitch D gain
@@ -327,10 +329,10 @@ void update_filter()
   //check for rollover
   if(dt<=0)
   {
-    dt+=1000000000;
+    dt+=1000000000.0;
   }
   //convert to seconds
-  dt=dt/1000000000;
+  dt=dt/1000000000.0;
   time_prev=time_curr;
 
   program_time+= dt;
@@ -343,6 +345,9 @@ void update_filter()
   float A = 0.02f;
   roll_angle= roll_accel*A +(1.0f- A) *(imu_data[4]*dt + roll_angle);
   pitch_angle = pitch_accel* A+ (1.0f -A) * (imu_data[5]*dt+ pitch_angle);
+  
+  //pitch_angle += (imu_data[5] * dt);
+  //roll_angle += (imu_data[4] * dt);
 }
 
 
@@ -392,9 +397,10 @@ void safety_check()
      imu_data[5]>GYRO_LIMIT || imu_data[5]<-GYRO_LIMIT)
     kill_motors("gyro rate exceeded limit");
 
+  
   if(roll_angle>ROLL_LIMIT || roll_angle<-ROLL_LIMIT)
     kill_motors("roll angle exceeded limit");
-
+  printf("pitch angle: %f\n", pitch_angle);
   if(pitch_angle>PITCH_LIMIT || pitch_angle<-PITCH_LIMIT)
     kill_motors("pitch angle exceeded limit");
 
@@ -533,10 +539,10 @@ void set_motor_values()
   }
 
   print_counter++;
-  if(print_counter % 20 == 0)
-    printf("%.4f %d %d %d %d %.4f %.4f %.4f %.4f %.4f %.4f %.4f\n", program_time,
+  if(print_counter % 20 == 0){}
+    /*printf("%.4f %d %d %d %d %.4f %.4f %.4f %.4f %.4f %.4f %.4f\n", program_time,
            motor_commands[0], motor_commands[1], motor_commands[2], motor_commands[3],
-           pitch_angle, pitch_desired, roll_angle, roll_desired, thrust, yaw_rate*10, yaw_desired*10);
+           pitch_angle, pitch_desired, roll_angle, roll_desired, thrust, yaw_rate*10, yaw_desired*10);*/
 }
 
 void motor_enable()
@@ -682,7 +688,6 @@ void motor_enable()
     }
 
 }
-
 
 void set_motors(int motor0, int motor1, int motor2, int motor3)
 {
