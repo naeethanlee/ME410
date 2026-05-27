@@ -15,16 +15,16 @@
 #define BUFFER_SIZE 1024
 
 
-struct data // data struct from udp_rx file
+struct data
 {
-  int key0;
+	int key0;
   int key1;
   int key2;
   int key3;
-  int pitch;
-  int roll;
-  int yaw;
-  int thrust;
+	int pitch;
+	int roll;
+	int yaw;
+	int thrust;
   float x;
   float y;
   float z;
@@ -32,13 +32,14 @@ struct data // data struct from udp_rx file
   int success;
   int sequence_num;
   
+  
 };
 
 int main() {
     struct sockaddr_in server_addr, client_addr;
     int sockfd, nbytes;
     socklen_t addr_len;
-    char buffer[BUFFER_SIZE];
+    uint8_t buffer[BUFFER_SIZE];
     
     
 
@@ -86,7 +87,7 @@ int main() {
     addr_len = sizeof(client_addr);
     while (1) {
         nbytes = recvfrom(sockfd,(char *)buffer, BUFFER_SIZE, 0, (struct sockaddr *)&client_addr, &addr_len);
-        buffer[nbytes] = '\0';
+        //buffer[nbytes] = '\0';
         if (nbytes < 0) {
             perror("recvfrom");
             exit(EXIT_FAILURE);
@@ -100,7 +101,8 @@ int main() {
         shared_memory->yaw=buffer[0];
         shared_memory->pitch=buffer[3];
         shared_memory->roll=buffer[2];
-        shared_memory->sequence_num=buffer[8];
+        shared_memory->success=buffer[24];
+        shared_memory->sequence_num=buffer[25];
 
         printf("Received %d bytes from %s:%d\n", nbytes, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
         //printf("Message: %s\n", nbytes);
@@ -111,13 +113,20 @@ int main() {
         printf("byte 5 is %d\n",buffer[4]);          
         printf("byte 6 is %d\n",buffer[5]);          
         printf("byte 7 is %d\n",buffer[6]);  
-        printf("byte 8 is %d\n",buffer[7]);
-        printf("byte 9 is %d\n",buffer[8]);
-        printf("byte 10 is %d\n",buffer[9]);          
-        printf("byte 11 is %d\n",buffer[10]);  
-        printf("byte 12 is %d\n",buffer[11]);
-        printf("byte 13 is %d\n",buffer[12]);
-        printf("byte 14 is %d\n",buffer[13]);
+        printf("byte 8 is %d\n",buffer[7]);        
+        memcpy(&shared_memory->x, buffer + 8, 4);
+        memcpy(&shared_memory->y, buffer + 12, 4);
+        memcpy(&shared_memory->z, buffer + 16, 4);
+        memcpy(&shared_memory->camera_yaw, buffer + 20, 4);
+        printf("float 1 is %f\n",shared_memory->x);        
+        printf("float 1 is %f\n",shared_memory->y);        
+        printf("float 1 is %f\n",shared_memory->z);        
+        printf("float 1 is %f\n",shared_memory->camera_yaw);
+                
+        printf("byte 23 1 is %d\n",shared_memory->success);
+                
+        printf("byte 24 1 is %d\n",shared_memory->sequence_num);
+        printf("nbytes = %d\n", nbytes);
     }
 
     // Close socket

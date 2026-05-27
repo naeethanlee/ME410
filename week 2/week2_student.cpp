@@ -87,6 +87,10 @@ float integral_roll = 0; // roll integral accumulator
 float integral_gain_roll = 0.05; // roll I gain
 float integral_saturate_roll = 35; // roll integral clamp
 
+// Milestone 8
+bool autonomy_yaw = true;
+float auto_yaw_speed = 10;
+
 /* yaw test zero
 int motor_commands[] = {0, 0, 0, 0}; // 0 and 2 forward, 1 and 3 back(left then right)
 int motor_paused = 1; // start paused; A to pause, Y to run
@@ -115,8 +119,8 @@ float yaw_amplitude = 100.0; // max commanded yaw rate (deg/s)
 //
 int motor_address;
 
-struct Joystick
-{
+  struct Joystick // data struct from udp_rx file
+  {
   int key0;
   int key1;
   int key2;
@@ -125,6 +129,11 @@ struct Joystick
   int roll;
   int yaw;
   int thrust;
+  float x;
+  float y;
+  float z;
+  float camera_yaw;
+  int success;
   int sequence_num;
 };
 
@@ -152,6 +161,24 @@ int main (int argc, char *argv[])
       safety_check();
       set_motor_values();
       set_motors(motor_commands[0], motor_commands[1], motor_commands[2], motor_commands[3]);
+      printf(
+"joystick: %d %d %d %d | yaw: %d pitch: %d roll: %d thrust: %d | "
+"x: %.3f y: %.3f z: %.3f yaw: %.3f | success: %d seq: %d\n",
+joystick_data.key0,
+joystick_data.key1,
+joystick_data.key2, // x button
+joystick_data.key3,
+joystick_data.yaw,
+joystick_data.pitch,
+joystick_data.roll,
+joystick_data.thrust,
+joystick_data.x,
+joystick_data.y,
+joystick_data.z,
+joystick_data.camera_yaw,
+joystick_data.success,
+joystick_data.sequence_num
+);
     }
 
     return 0;
@@ -401,7 +428,7 @@ void safety_check()
   
   if(roll_angle>ROLL_LIMIT || roll_angle<-ROLL_LIMIT)
     kill_motors("roll angle exceeded limit");
-  //printf("thrust: %f\n", thrust);
+  printf("pitch angle: %f\n", pitch_angle);
   if(pitch_angle>PITCH_LIMIT || pitch_angle<-PITCH_LIMIT)
     kill_motors("pitch angle exceeded limit");
 
@@ -429,6 +456,10 @@ void safety_check()
   }
   else if(program_time - last_joystick_time > JOYSTICK_TIMEOUT)
     kill_motors("joystick timeout");
+
+  if(joystick_data.key2 == 1){
+    autonomy_yaw = !autonomy_yaw;
+  }
 }
 
 void set_motor_values()
@@ -519,10 +550,21 @@ void set_motor_values()
   float roll_pid = (roll_gain * roll_error) - (roll_derivative_gain * imu_data[4]) + (integral_roll);
 
   /* yaw */
+  float yaw_pid = 0;
+
   float joystick_yaw_value = (float)(joystick_data.yaw) - 128.0;
-  float yaw_desired = joystick_yaw_value / 128.0 * yaw_amplitude; // desired yaw rate deg/s
-  float yaw_rate = -imu_data[3]; // yaw rate, negated to match yaw direction convention
-  float yaw_pid = yaw_gain * (yaw_desired - yaw_rate);
+  if (autonomy_yaw == true){
+    float yaw_desired = joystick_yaw_value / 128.0 * yaw_amplitude; // desired yaw rate deg/s
+    float yaw_rate = -imu_data[3]; // yaw rate, negated to match yaw direction convention
+    yaw_pid = yaw_gain * (yaw_desired - yaw_rate);
+  }
+  else{
+    float yaw_desired = joystick_data.camera_yaw / 180.0 * auto_yaw_speed;
+    yaw_pid = yaw_desired;
+  }
+  
+  
+
 
   // X-frame mixing: diagonal pairs share spin direction
   // if yaw response is backwards flip sign of yaw_pid
