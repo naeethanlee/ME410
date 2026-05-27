@@ -17,14 +17,15 @@ type $env:USERPROFILE\.ssh\id_rsa.pub | ssh pi@10.42.0.1 "mkdir -p ~/.ssh && cat
 
 // gcc -o flight/wk2_student flight/wk2_student.cpp -lwiringPi -lm
 // scp week2_student.cpp pi@10.42.0.1:/home/pi/flight/wk2_student.cpp
+
 // for when u get the rx error sudo killall udp_rx
 
 #define GYRO_LIMIT 300.0f
 #define ROLL_LIMIT 45.0f
 #define PITCH_LIMIT 45.0f
 #define JOYSTICK_TIMEOUT 0.99f
-#define THRUST_MAX 2000
-#define THRUST_MIN 0
+#define THRUST_MAX 2000.0f
+#define THRUST_MIN 0.0f
 
 
 int setup_imu();
@@ -70,8 +71,8 @@ float dt=0; // timestep in seconds
 int motor_commands[] = {0, 0, 0, 0}; // 0 and 2 forward, 1 and 3 back(left then right)
 int motor_paused = 1; // start paused; A to pause, Y to run
 float thrust=0;
-float thrust_neutral=1400; // neutral thrust value
-float thrust_amplitude=150; // joystick thrust read
+float thrust_neutral=1350; // neutral thrust value
+float thrust_amplitude=450; // joystick thrust read
 float pitch_amplitude=10; // joystick pitch read
 float pitch_gain = 10; // pitch P gain
 float derivative_gain = 3; // pitch D gain
@@ -329,10 +330,10 @@ void update_filter()
   //check for rollover
   if(dt<=0)
   {
-    dt+=1000000000.0;
+    dt+=1000000000;
   }
   //convert to seconds
-  dt=dt/1000000000.0;
+  dt=dt/1000000000;
   time_prev=time_curr;
 
   program_time+= dt;
@@ -400,7 +401,7 @@ void safety_check()
   
   if(roll_angle>ROLL_LIMIT || roll_angle<-ROLL_LIMIT)
     kill_motors("roll angle exceeded limit");
-  printf("pitch angle: %f\n", pitch_angle);
+  //printf("thrust: %f\n", thrust);
   if(pitch_angle>PITCH_LIMIT || pitch_angle<-PITCH_LIMIT)
     kill_motors("pitch angle exceeded limit");
 
@@ -540,9 +541,9 @@ void set_motor_values()
 
   print_counter++;
   if(print_counter % 20 == 0){}
-    /*printf("%.4f %d %d %d %d %.4f %.4f %.4f %.4f %.4f %.4f %.4f\n", program_time,
+    printf("%.4f %d %d %d %d %.4f %.4f %.4f %.4f %.4f %.4f %.4f\n", program_time,
            motor_commands[0], motor_commands[1], motor_commands[2], motor_commands[3],
-           pitch_angle, pitch_desired, roll_angle, roll_desired, thrust, yaw_rate*10, yaw_desired*10);*/
+           pitch_error, roll_error, roll_angle, roll_desired, thrust, yaw_rate*10, yaw_desired*10);
 }
 
 void motor_enable()
