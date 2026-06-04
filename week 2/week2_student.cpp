@@ -70,7 +70,7 @@ float dt=0; // timestep in seconds
 int motor_commands[]={0,0,0,0}; // 0 and 2 front, 1 and 3 back(left then right)
 int motor_paused=1; // start paused; A to pause, Y to run
 float thrust=0;
-float thrust_neutral=900; // neutral thrust value
+float thrust_neutral=950; // neutral thrust value
 float thrust_amplitude=0; // joystick thrust range
 float pitch_amplitude=15; // max commanded pitch (deg)
 float pitch_gain = 15.5; // pitch P gain
@@ -91,7 +91,10 @@ float integral_saturate_roll = 90; // roll integral clamp
 // Milestone 8
 bool auto_mode = false;
 int x_prev = 0;
-float yaw_cam_p = -3.3; // try 1
+float yaw_cam_p = -3.3;
+float check_auto_pitch_d = 0;
+float auto_integral_pitch = 0;
+float cam_time_prev = 0;
 
 float cam_desired_y = 0;
 float cam_desired_x = 0;
@@ -99,9 +102,14 @@ float cam_estimate_y = 0;
 float cam_estimate_x = 0;
 
 // Camera Pitch PID Values
-float cam_pitch_p = 0;
+float cam_pitch_p = 40;
 float cam_pitch_d = 0;
 float cam_y_prev = 0;
+
+// Auto Combined Pitch PID Values
+float auto_pitch_p = 30;
+float auto_pitch_d = 0;
+float auto_pitch_i = 0;
 
 float yaw_gain = 4.2; // yaw P gain
 float yaw_amplitude = 65.0; // max commanded yaw rate (deg/s)
@@ -439,7 +447,6 @@ void safety_check()
   if(x_prev == 0){
     if(joystick_data.key2 == 1){
       auto_mode = !auto_mode;
-      printf("%d\n", auto_mode);
     }
   }
   x_prev = joystick_data.key2;
@@ -464,6 +471,7 @@ void set_motor_values()
   }
 
   float pitch_pid=pitch_gain*pitch_error+derivative_gain*imu_data[5]+integral_pitch;
+  printf("%f\n", pitch_pid);
 
   /* roll */
   float joystick_roll_value=(float)(joystick_data.roll)-128.0f;
@@ -728,30 +736,40 @@ void camera_control()
   /* pitch */
   // joystick control
   float joystick_pitch_value=(float)(joystick_data.pitch)-128.0f;
-  float joystick_pitch_desired=joystick_pitch_value/128.0f*pitch_amplitude;
-  float joystick_pitch_error=joystick_pitch_desired-pitch_angle;
-  float joystick_pitch_pid=pitch_gain*joystick_pitch_error+derivative_gain*imu_data[5]+integral_pitch;
+  float joystick_pitch_desired=joystick_pitch_value/128.0f*pitch_amplitude; // joystick desired angle
 
-
+  // camera control
   float camera_current_loc_y = joystick_data.y;
   cam_estimate_y = (cam_estimate_y * 0.6) + (camera_current_loc_y * 0.4);
-  float camera_pitch_desired = cam_pitch_p * (cam_estimate_y - cam_desired_y) - cam_pitch_d * 
-                              (cam_estimate_y - cam_y_prev) / (program_time - time_prev);
+  float camera_pitch_desired = (cam_pitch_p * (cam_estimate_y - cam_desired_y)) + (-cam_pitch_d * 
+                              (cam_estimate_y - cam_y_prev)) / (program_time - cam_time_prev); // camera desired angle
   
+  float combined_desired_angle = joystick_pitch_desired * 0.5 + camera_pitch_desired * 0.5; // overall desired angle
 
-  float pitch_pid = joystick_pitch_pid * 0.5 + camera_pitch_desired * 0.5;
-  pitch_pid = 0;
+  float combined_pitch_error = combined_desired_angle - pitch_angle;
 
-  // cam_y_prev = camera_current_loc_y;
-  // time_prev = program_time;
+  if(joystick_data.success == 1 || joystick_data.sequence_num != last_sequence_num){
+    check_auto_pitch_d = auto_pitch_d;
+  }
+  else{
+    check_auto_pitch_d = 0;
+  }
 
+  // if(!motor_paused)
+  // {
+  //   auto_integral_pitch += auto_pitch_i * combined_pitch_error;
+  //   if(auto_integral_pitch>integral_saturate) auto_integral_pitch=integral_saturate;
+  //   else if(auto_integral_pitch<-integral_saturate) auto_integral_pitch=-integral_saturate;
+  // }
 
+  float combined_pitch_pid = auto_pitch_p * combined_pitch_error + check_auto_pitch_d * imu_data[5];
 
+  cam_y_prev = camera_current_loc_y;
+  cam_time_prev = program_time;
+  last_sequence_num = joystick_data.sequence_num;
 
+  printf("%f\n", combined_pitch_pid);
 
-
-
-  
 
 
   // /* roll */
@@ -775,10 +793,10 @@ void camera_control()
   float cam_yaw = joystick_data.camera_yaw;
   yaw_pid = cam_yaw * yaw_cam_p;
 
-  motor_commands[0]=(int)(thrust-pitch_pid-roll_pid+yaw_pid); // front-left
-  motor_commands[1]=(int)(thrust+pitch_pid-roll_pid-yaw_pid); // back-left
-  motor_commands[2]=(int)(thrust-pitch_pid+roll_pid-yaw_pid); // front-right
-  motor_commands[3]=(int)(thrust+pitch_pid+roll_pid+yaw_pid); // back-right
+  motor_commands[0]=(int)(thrust-combined_pitch_pid-roll_pid+yaw_pid); // front-left
+  motor_commands[1]=(int)(thrust+combined_pitch_pid-roll_pid-yaw_pid); // back-left
+  motor_commands[2]=(int)(thrust-combined_pitch_pid+roll_pid-yaw_pid); // front-right
+  motor_commands[3]=(int)(thrust+combined_pitch_pid+roll_pid+yaw_pid); // back-right
 
   if(motor_paused)
   {
