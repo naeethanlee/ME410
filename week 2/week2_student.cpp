@@ -38,6 +38,7 @@ void safety_check();
 void set_motor_values();
 void motor_enable();
 void set_motors(int motor0, int motor1, int motor2, int motor3);
+void camera_control();
 
 //global variables
 int accel_address,gyro_address;
@@ -89,6 +90,7 @@ float integral_saturate_roll = 90; // roll integral clamp
 
 // Milestone 8
 bool auto_mode = false;
+int x_prev = 0;
 float yaw_cam_p = -3.3; // try 1
 
 float cam_desired_y = 0;
@@ -100,7 +102,6 @@ float cam_estimate_x = 0;
 float cam_pitch_p = 0;
 float cam_pitch_d = 0;
 float cam_y_prev = 0;
-float time_prev = 0;
 
 float yaw_gain = 4.2; // yaw P gain
 float yaw_amplitude = 65.0; // max commanded yaw rate (deg/s)
@@ -163,6 +164,7 @@ int main(int argc, char *argv[])
       else{
         camera_control();
       }
+      printf("%d %d %d %d\n", motor_commands[0], motor_commands[1], motor_commands[2], motor_commands[3]);
       set_motors(motor_commands[0], motor_commands[1], motor_commands[2], motor_commands[3]);
 //       if(print_counter % 20 == 0)
 //         printf(
@@ -434,11 +436,13 @@ void safety_check()
   else if(program_time-last_joystick_time > JOYSTICK_TIMEOUT)
     kill_motors("joystick timeout");
 
-  if(joystick_data.key2 == 1){
-    auto_mode = !auto_mode;
-    printf("%d\n", auto_mode);
+  if(x_prev == 0){
+    if(joystick_data.key2 == 1){
+      auto_mode = !auto_mode;
+      printf("%d\n", auto_mode);
+    }
   }
-  // printf("%d\n", auto_yaw);
+  x_prev = joystick_data.key2;
 }
 
 void set_motor_values()
@@ -730,50 +734,44 @@ void camera_control()
 
 
   float camera_current_loc_y = joystick_data.y;
-  cam_estimate_y = (cam_estimate_y * 0.6) + (camera_current_loc_y * 0.4)
+  cam_estimate_y = (cam_estimate_y * 0.6) + (camera_current_loc_y * 0.4);
   float camera_pitch_desired = cam_pitch_p * (cam_estimate_y - cam_desired_y) - cam_pitch_d * 
                               (cam_estimate_y - cam_y_prev) / (program_time - time_prev);
   
 
   float pitch_pid = joystick_pitch_pid * 0.5 + camera_pitch_desired * 0.5;
+  pitch_pid = 0;
+
+  // cam_y_prev = camera_current_loc_y;
+  // time_prev = program_time;
+
+
+
+
+
+
 
   
 
 
+  // /* roll */
+  float roll_pid = 0;
+  // float joystick_roll_value=(float)(joystick_data.roll)-128.0f;
+  // float roll_desired=joystick_roll_value/128.0f*roll_amplitude;
+  // float roll_error=roll_desired-roll_angle;
 
-  cam_y_prev = camera_current_loc_y;
-  time_prev = program_time;
+  // if(!motor_paused)
+  // {
+  //   integral_roll+=integral_gain_roll*roll_error;
+  //   if(integral_roll>integral_saturate_roll) integral_roll=integral_saturate_roll;
+  //   else if(integral_roll<-integral_saturate_roll) integral_roll=-integral_saturate_roll;
+  // }
 
-
-
-
-
-
-  if(!motor_paused)
-  {
-    integral_pitch+=integral_gain*pitch_error;
-    if(integral_pitch>integral_saturate) integral_pitch=integral_saturate;
-    else if(integral_pitch<-integral_saturate) integral_pitch=-integral_saturate;
-  }
-
+  // float roll_pid=roll_gain*roll_error-roll_derivative_gain*imu_data[4]+integral_roll;
   
-
-
-  /* roll */
-  float joystick_roll_value=(float)(joystick_data.roll)-128.0f;
-  float roll_desired=joystick_roll_value/128.0f*roll_amplitude;
-  float roll_error=roll_desired-roll_angle;
-
-  if(!motor_paused)
-  {
-    integral_roll+=integral_gain_roll*roll_error;
-    if(integral_roll>integral_saturate_roll) integral_roll=integral_saturate_roll;
-    else if(integral_roll<-integral_saturate_roll) integral_roll=-integral_saturate_roll;
-  }
-
-  float roll_pid=roll_gain*roll_error-roll_derivative_gain*imu_data[4]+integral_roll;
 
   // yaw control
+  float yaw_pid;
   float cam_yaw = joystick_data.camera_yaw;
   yaw_pid = cam_yaw * yaw_cam_p;
 
