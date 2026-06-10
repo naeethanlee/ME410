@@ -70,8 +70,8 @@ float dt=0; // timestep in seconds
 int motor_commands[]={0,0,0,0}; // 0 and 2 front, 1 and 3 back(left then right)
 int motor_paused=1; // start paused; A to pause, Y to run
 float thrust=0;
-float thrust_neutral=1500; // neutral thrust value
-float thrust_amplitude=600; // joystick thrust range
+float thrust_neutral=1350; // neutral thrust value
+float thrust_amplitude=400; // joystick thrust range
 float pitch_amplitude=10; // max commanded pitch (deg) 15
 float pitch_gain = 15.5; // pitch P gain 15.5
 float derivative_gain = 3.5; // pitch D gain 3.5
@@ -767,6 +767,8 @@ void camera_control()
   cam_y_prev = cam_estimate_y;
   cam_time_prev = program_time;
   last_sequence_num = joystick_data.sequence_num;
+
+  combined_pitch_pid = 0;
 
 
 
