@@ -102,13 +102,13 @@ float cam_estimate_y = 0;
 float cam_estimate_x = 0;
 
 // Camera Pitch PID Values
-float cam_pitch_p = 40;
+float cam_pitch_p = 5;
 float cam_pitch_d = 0;
 float cam_y_prev = 0;
 
 // Auto Combined Pitch PID Values
-float auto_pitch_p = 30;
-float auto_pitch_d = 0;
+float auto_pitch_p = 15;
+float auto_pitch_d = 3.5;
 float auto_pitch_i = 0;
 
 float yaw_gain = 4.2; // yaw P gain
@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
       else{
         camera_control();
       }
-      printf("%d %d %d %d\n", motor_commands[0], motor_commands[1], motor_commands[2], motor_commands[3]);
+      // printf("%d %d %d %d\n", motor_commands[0], motor_commands[1], motor_commands[2], motor_commands[3]);
       set_motors(motor_commands[0], motor_commands[1], motor_commands[2], motor_commands[3]);
 //       if(print_counter % 20 == 0)
 //         printf(
@@ -471,7 +471,7 @@ void set_motor_values()
   }
 
   float pitch_pid=pitch_gain*pitch_error+derivative_gain*imu_data[5]+integral_pitch;
-  printf("%f\n", pitch_pid);
+  // printf("%f\n", pitch_pid);
 
   /* roll */
   float joystick_roll_value=(float)(joystick_data.roll)-128.0f;
@@ -741,12 +741,13 @@ void camera_control()
   // camera control
   float camera_current_loc_y = joystick_data.y;
   cam_estimate_y = (cam_estimate_y * 0.6) + (camera_current_loc_y * 0.4);
-  float camera_pitch_desired = (cam_pitch_p * (cam_estimate_y - cam_desired_y)) + (-cam_pitch_d * 
+  float camera_pitch_desired = (cam_pitch_p * (camera_current_loc_y - cam_desired_y)) + (-cam_pitch_d * 
                               (cam_estimate_y - cam_y_prev)) / (program_time - cam_time_prev); // camera desired angle
   
   float combined_desired_angle = joystick_pitch_desired * 0.5 + camera_pitch_desired * 0.5; // overall desired angle
 
   float combined_pitch_error = combined_desired_angle - pitch_angle;
+  printf("%f - %f = %f\n", combined_desired_angle, pitch_angle, combined_pitch_error);
 
   if(joystick_data.success == 1 || joystick_data.sequence_num != last_sequence_num){
     check_auto_pitch_d = auto_pitch_d;
@@ -764,11 +765,11 @@ void camera_control()
 
   float combined_pitch_pid = auto_pitch_p * combined_pitch_error + check_auto_pitch_d * imu_data[5];
 
-  cam_y_prev = camera_current_loc_y;
+  cam_y_prev = cam_estimate_y;
   cam_time_prev = program_time;
   last_sequence_num = joystick_data.sequence_num;
 
-  printf("%f\n", combined_pitch_pid);
+  
 
 
 
